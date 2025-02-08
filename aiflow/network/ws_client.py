@@ -44,15 +44,18 @@ class WebSocketClient:
     def register_handler(self, message_type: str, callback):
         self._message_handlers[message_type] = callback
 
-    async def _handle_message(self, message_str: str):
+    async def _handle_message(self, message):
         try:
-            message = json.loads(message_str)
-            message_type = message.get('type')
-            event_base.store_message(message)
-            if message_type in self._message_handlers:
-                await asyncio.create_task(self._message_handlers[message_type](message))
+            if isinstance(message, str):
+                message = json.loads(message)
+            await event_base.store_message(message)
         except Exception as e:
-            logger.error(f"Error handling message: {str(e)}")
+            logger.error(f"Error processing message: {e}")
+
+    def on_message(self, message):
+        """Handle incoming WebSocket messages"""
+        # Create task to handle message asynchronously
+        asyncio.create_task(self._handle_message(message))
 
     async def _listen_messages(self):
         while self._connected.is_set():

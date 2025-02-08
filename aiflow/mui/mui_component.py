@@ -21,7 +21,7 @@ class MUIComponent:
         self._log_creation()
 
     def _log_creation(self):
-        print(self.type)
+        print(self.to_dict())
 
     def __enter__(self):
         if self._builder:
@@ -50,7 +50,7 @@ class MUIComponent:
                         "timestamp": time.time()
                     }
                 }
-                event_base.send_response(message)   
+                event_base.queue_message(message)
         return False
 
     def to_dict(self) -> Dict[str, Any]:

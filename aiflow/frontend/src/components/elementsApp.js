@@ -145,12 +145,23 @@ const preprocessJsonString = (jsonString) => {
   }
 };
 
+const renderElement = (type, module, props) => {
+  try {
+    validateElement(module, type);
+    const LoadedElement = loaders[module](type);
+    return React.createElement(LoadedElement, props);
+  } catch (error) {
+    console.error('Error rendering element:', error);
+    return null;
+  }
+};
+
 const ElementsApp = ({ args, theme }) => {
   const [components, setComponents] = useState(new Map());
   const { socketService, isConnected, connectionError } = useWebSocket();
 
-  // Send events through socket service
-  const send = async (data) => {
+  // Move send function definition before it's used
+  const send = useCallback(async (data) => {
     if (!socketService) {
       console.warn('WebSocket service not available');
       return;
@@ -171,43 +182,105 @@ const ElementsApp = ({ args, theme }) => {
     } catch (error) {
       console.error('Error sending event:', error);
     }
-  };
+  }, [socketService]);
 
-  const renderComponent = useCallback((component) => {
-    if (!component || !component.type) {
-      console.error('Invalid component:', component);
-      return null;
-    }
+  // Helper function to build component hierarchy
+  const buildHierarchy = useCallback((componentsMap) => {
+    const hierarchy = new Map();
+    const roots = [];
+    
+    // Create hierarchy entries
+    componentsMap.forEach((comp) => {
+      hierarchy.set(comp.id, {
+        component: comp,
+        children: [],
+        parentId: comp.parentId,
+        order: comp.props?.order || 0
+      });
+    });
+    
+    // Build parent-child relationships
+    componentsMap.forEach((comp) => {
+      const node = hierarchy.get(comp.id);
+      if (node.parentId && hierarchy.has(node.parentId)) {
+        const parent = hierarchy.get(node.parentId);
+        if (!parent.children.includes(comp.id)) {
+          parent.children.push(comp.id);
+        }
+      } else {
+        if (!roots.includes(comp.id)) {
+          roots.push(comp.id);
+        }
+      }
+    });
+    
+    // Sort children and roots
+    const sortByOrder = (a, b) => {
+      const orderA = hierarchy.get(a)?.order || 0;
+      const orderB = hierarchy.get(b)?.order || 0;
+      return orderA - orderB;
+    };
+
+    hierarchy.forEach(node => {
+      node.children.sort(sortByOrder);
+    });
+    roots.sort(sortByOrder);
+    
+    return { hierarchy, roots };
+  }, []);
+
+  const renderComponent = useCallback((id, hierarchy) => {
+    const node = hierarchy.get(id);
+    if (!node) return null;
+
+    const { component, children } = node;
+    const { module = 'muiElements', type, props = {} } = component;
 
     try {
-      const { module = 'muiElements', type, props = {}, children = [], id } = component;
-      
       validateElement(module, type);
       const LoadedElement = loaders[module](type);
-
-      // Process event handlers in props
-      const processedProps = {...props};
-      if (props.onClick) {
-        processedProps.onClick = (...args) => 
-          send(createEventPayload(id, EVENT_TYPES.CLICK, args));
-      }
-      if (props.onChange) {
-        processedProps.onChange = (e) => 
-          send(createEventPayload(id, EVENT_TYPES.CHANGE, e.target.value));
-      }
       
-      const processedChildren = children.map(child => {
-        if (typeof child === 'string') return child;
-        if (child.type === 'text') return child.content;
-        return renderComponent(child);
-      }).filter(Boolean);
+      // Process props
+      const processedProps = { ...props };
+      delete processedProps.parent_id;
+      delete processedProps.order;
 
-      return React.createElement(LoadedElement, { 
-        key: id,
-        ...processedProps
-      }, ...processedChildren);
+      // Convert props
+      const convertedProps = {};
+      for (const [key, value] of Object.entries(processedProps)) {
+        convertedProps[key] = convertNode(value, (node) => 
+          renderElement(node.type, node.module, node.props)
+        );
+      }
+
+      // Get children elements
+      let renderedChildren = children
+        .map(childId => renderComponent(childId, hierarchy))
+        .filter(Boolean);
+
+      // Use props.children as text content if available
+      if (!renderedChildren.length && props.children) {
+        renderedChildren = [props.children];
+      }
+
+      console.log('Rendering component:', {
+        id,
+        type,
+        props: convertedProps,
+        children: renderedChildren
+      });
+
+      return React.createElement(
+        LoadedElement,
+        {
+          key: id,
+          ...convertedProps
+        },
+        renderedChildren.length > 0 ? renderedChildren : undefined
+      );
+
     } catch (error) {
-      console.error('Error rendering component:', error, component);
+      console.error('Error rendering component:', error);
       return null;
     }
   }, [send]);
@@ -216,43 +289,26 @@ const ElementsApp = ({ args, theme }) => {
     if (!socketService) return;
 
     const handleComponentUpdate = (payload) => {
-      if (!payload || !payload.component) {
-        console.warn('Invalid component update payload:', payload);
-        return;
-      }
-
-      console.log('Processing component update:', payload);
-      setComponents(prevComponents => {
-        const newComponents = new Map(prevComponents);
-        const component = payload.component;
-        newComponents.set(component.id, component);
-        return newComponents;
+      if (!payload?.component?.id) return;
+      
+      const newComponent = payload.component;
+      
+      setComponents(prev => {
+        const next = new Map(prev);
+        // Store component with its original structure including parentId
+        next.set(newComponent.id, {
+          ...newComponent,
+          parentId: newComponent.parentId // Preserve parentId at top level
+        });
+        return next;
       });
     };
 
-    const handleMessage = (payload) => {
-      if (!payload) {
-        console.warn('Empty message payload');
-        return;
-      }
-
-      console.log('Processing message:', payload);
-      // Handle component updates that come through regular messages
-      if (typeof payload === 'object' && payload.type === 'component_update') {
-        handleComponentUpdate(payload.payload);
-      }
-    };
-
-    // Setup listeners with cleanup
     const componentHandler = socketService.addListener('component_update', handleComponentUpdate);
-    const messageHandler = socketService.addListener('message', handleMessage);
-
-    return () => {
-      componentHandler && componentHandler();
-      messageHandler && messageHandler();
-    };
+    return () => componentHandler?.();
   }, [socketService]);
 
+  // Main render
   if (!isConnected) {
     return (
       <div style={{
@@ -287,6 +343,8 @@ const ElementsApp = ({ args, theme }) => {
     );
   }
 
+  const { hierarchy, roots } = buildHierarchy(components);
+
   return (
     <ElementsResizer>
       <ElementsTheme theme={theme}>
@@ -312,9 +370,7 @@ const ElementsApp = ({ args, theme }) => {
             padding: '24px',
             backgroundColor: theme?.backgroundColor || '#121212'
           }}>
-            {Array.from(components.values())
-              .filter(component => !component.parentId)
-              .map(component => renderComponent(component))}
+            {roots.map(rootId => renderComponent(rootId, hierarchy))}
           </div>
         </ErrorBoundary>
       </ElementsTheme>

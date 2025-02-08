@@ -1,4 +1,5 @@
 import asyncio
+from collections import deque
 from aiflow.logger import setup_logger
 
 logger = setup_logger('EventBase')
@@ -16,39 +17,45 @@ class EventBase:
         self.last_message = None
         self.sender_id = None
         self.session_id = None
-        self._loop = None
         self._ws_client = None
+        self.message_queue = deque()
 
     def set_ws_client(self, client):
         self._ws_client = client
 
-    def store_message(self, message):
+    async def store_message(self, message):
         self.last_message = message.get('payload')
         self.sender_id = message.get('sender_id')
         self.client_id = message.get('client_id')
         
         if self.sender_id:
+            await self._process_queued_messages()
+            
             response = {
                 "type": "message",
                 "client_id": self.sender_id,
                 "sender_id": self.client_id,
                 "payload": f"Received your message: {self.last_message}"
             }
-            self.send_response(response)
+            await self.send_response(response)
 
-    def send_response(self, payload):
-        if not self.sender_id or not self._ws_client:
-            logger.warning("No sender_id or ws_client available to send response")
-            return
+    def queue_message(self, payload):
+        self.message_queue.append(payload)
+        logger.info(f"Message queued. Queue size: {len(self.message_queue)}")
 
+    async def _process_queued_messages(self):
+        while self.message_queue:
+            message = self.message_queue.popleft()
+            await self.send_response(message)
+        logger.info("All queued messages processed")
+
+    async def send_response(self, payload):
         try:
-            self._loop = asyncio.get_event_loop()
-        except RuntimeError:
-            self._loop = asyncio.new_event_loop()
-            asyncio.set_event_loop(self._loop)
-
-        asyncio.create_task(self._ws_client.send(payload, [self.sender_id]))
-        logger.info(f"Response sent to sender {self.sender_id}")
+            await self._ws_client.send(payload)
+            logger.info("Response sent successfully")
+        except Exception as e:
+            logger.error(f"Failed to send response: {e}")
+            self.queue_message(payload)
 
     def get_message_info(self):
         return {
