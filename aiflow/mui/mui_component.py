@@ -9,19 +9,35 @@ class MUIComponent:
         module: str = "muiElements",
         props: Optional[Dict[str, Any]] = None,
         children: Optional[List[Union[str, "MUIComponent"]]] = None,
-        builder: Optional[Any] = None  # Changed to Any to avoid circular import
+        builder: Optional[Any] = None
     ):
-        self.type = type_name
+        if module == "text":
+            self.type = "text"
+            self.text_content = str(type_name)
+        else:
+            self.type = type_name
+            self.text_content = None
+            
         self.module = module
         self.props = props or {}
         self.children = children or []
         self._builder = builder
         self._parent = None
         self.unique_id = self._builder.get_next_id() if self._builder else 0
-        self._log_creation()
 
-    def _log_creation(self):
-        print(self.to_dict())
+    def _component_creation(self):
+        if self.type != "text" or not self._parent:
+            print(f"init {self.to_dict()}")
+            # Ensure consistent message format
+            message = {
+                "type": "component_update",
+                "payload": {
+                    "component": self.to_dict(),
+                    "timestamp": time.time()
+                }
+            }
+            
+            event_base.send_response_sync(message)
 
     def __enter__(self):
         if self._builder:
@@ -40,20 +56,17 @@ class MUIComponent:
             else:
                 # Handle root component
                 self._builder.root = self._builder._stack.pop()
-                component_data = self.to_dict()
                 
-                # Ensure consistent message format
-                message = {
-                    "type": "component_update",
-                    "payload": {
-                        "component": component_data,
-                        "timestamp": time.time()
-                    }
-                }
-                event_base.queue_message(message)
         return False
 
     def to_dict(self) -> Dict[str, Any]:
+        if self.type == "text":
+            return {
+                "type": "text",
+                "id": f"text_{self.unique_id}",
+                "content": self.text_content
+            }
+            
         data = {
             "type": self.type,
             "id": f"{self.type}_{self.unique_id}",

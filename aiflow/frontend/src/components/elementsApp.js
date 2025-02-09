@@ -234,6 +234,12 @@ const ElementsApp = ({ args, theme }) => {
     if (!node) return null;
 
     const { component, children } = node;
+    
+    // Handle text nodes
+    if (component.type === 'text') {
+      return component.content;
+    }
+
     const { module = 'muiElements', type, props = {} } = component;
 
     try {
@@ -258,11 +264,6 @@ const ElementsApp = ({ args, theme }) => {
         .map(childId => renderComponent(childId, hierarchy))
         .filter(Boolean);
 
-      // Use props.children as text content if available
-      if (!renderedChildren.length && props.children) {
-        renderedChildren = [props.children];
-      }
-
       console.log('Rendering component:', {
         id,
         type,
@@ -283,23 +284,34 @@ const ElementsApp = ({ args, theme }) => {
       console.error('Error rendering component:', error);
       return null;
     }
-  }, [send]);
+  }, []);
 
   useEffect(() => {
     if (!socketService) return;
 
     const handleComponentUpdate = (payload) => {
-      if (!payload?.component?.id) return;
+      if (!payload?.component) return;
       
       const newComponent = payload.component;
       
       setComponents(prev => {
         const next = new Map(prev);
-        // Store component with its original structure including parentId
-        next.set(newComponent.id, {
-          ...newComponent,
-          parentId: newComponent.parentId // Preserve parentId at top level
-        });
+        // Handle both regular components and text nodes
+        if (newComponent.type === 'text') {
+          // For text nodes, store with special handling
+          next.set(newComponent.id, {
+            id: newComponent.id,
+            type: 'text',
+            content: newComponent.content,
+            parentId: newComponent.parentId
+          });
+        } else {
+          // For regular components
+          next.set(newComponent.id, {
+            ...newComponent,
+            parentId: newComponent.parentId
+          });
+        }
         return next;
       });
     };

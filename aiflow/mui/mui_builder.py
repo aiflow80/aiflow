@@ -18,23 +18,41 @@ class MUIBuilder:
         return self._icons
 
     def create_component(self, element: str, *args, **props) -> MUIComponent:
-        comp = MUIComponent(element, props=props, builder=self)
-        if args:
-            comp.children.extend(args)
+        # Process text arguments first
+        text_children = []
+        for arg in args:
+            if isinstance(arg, (str, int, float)):
+                text_comp = MUIComponent(str(arg), module="text", builder=self)
+                text_children.append(text_comp)
+            else:
+                text_children.append(arg)
+
+        # Create main component
+        comp = MUIComponent(
+            element, 
+            module="muiElements", 
+            props=props, 
+            children=text_children,  # Add children directly
+            builder=self
+        )
+
+        # Set parent relationships
+        for child in text_children:
+            child._parent = comp
+
+        # Handle stacking
         if len(self._stack) > 0:
             parent = self._stack[-1]
             comp._parent = parent
-            if comp not in parent.children:
-                parent.children.append(comp)
-        elif self.root is None:
-            self.root = comp
+            parent.children.append(comp)
+
+        # Print state immediately after children are added
+        comp._component_creation()
+
         return comp
 
     def __getattr__(self, element):
         def component_factory(*args, **props):
-            if 'with' in props:
-                del props['with']
-                return MUIComponent(element, props=props, children=list(args) if args else [], builder=self)
             return self.create_component(element, *args, **props)
         return component_factory
 

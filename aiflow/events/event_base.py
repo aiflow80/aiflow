@@ -49,6 +49,12 @@ class EventBase:
             await self.send_response(message)
         logger.info("All queued messages processed")
 
+    def send_response_sync(self, payload):
+        if self.session_id:
+            asyncio.run(self.send_response(payload))
+        else:
+            self.queue_message(payload)
+
     async def send_response(self, payload):
         try:
             await self._ws_client.send(payload)
