@@ -35,7 +35,10 @@ export const WebSocketProvider = ({ children }) => {
             }
 
             const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-            console.log('Raw WebSocket message:', data);
+            console.log('📥 WebSocket message received:', {
+              timestamp: new Date().toISOString(),
+              data: data
+            });
 
             // Handle connection messages
             if (data.type === 'connection') {

@@ -235,6 +235,14 @@ const ElementsApp = ({ args, theme }) => {
 
     const { component, children } = node;
     
+    console.log('🎨 Rendering Component:', {
+      id,
+      type: component.type,
+      module: component.module,
+      childrenCount: children.length,
+      timestamp: new Date().toISOString()
+    });
+    
     // Handle text nodes
     if (component.type === 'text') {
       return component.content;
@@ -259,16 +267,32 @@ const ElementsApp = ({ args, theme }) => {
         );
       }
 
-      // Get children elements
-      let renderedChildren = children
+      // Handle both direct children and children array from component update
+      let renderedChildren = [];
+      
+      // First handle children from component.children if it exists
+      if (component.children && Array.isArray(component.children)) {
+        renderedChildren = component.children.map(child => {
+          if (child.type === 'text') {
+            return child.content;
+          }
+          return renderComponent(child.id, hierarchy);
+        }).filter(Boolean);
+      }
+
+      // Then handle children from hierarchy
+      const hierarchyChildren = children
         .map(childId => renderComponent(childId, hierarchy))
         .filter(Boolean);
+
+      // Combine both types of children
+      renderedChildren = [...renderedChildren, ...hierarchyChildren];
 
       console.log('Rendering component:', {
         id,
         type,
         props: convertedProps,
-        children: renderedChildren
+        childrenCount: renderedChildren.length
       });
 
       return React.createElement(
@@ -293,25 +317,41 @@ const ElementsApp = ({ args, theme }) => {
       if (!payload?.component) return;
       
       const newComponent = payload.component;
+      console.log('🔄 Component Update Received:', {
+        timestamp: new Date().toISOString(),
+        component: newComponent
+      });
       
       setComponents(prev => {
         const next = new Map(prev);
-        // Handle both regular components and text nodes
+        const id = newComponent.id;
+        const parentId = newComponent.parentId;
+
+        // If this component already exists, just update it
+        if (next.has(id)) {
+          next.set(id, {
+            ...next.get(id),
+            ...newComponent,
+            parentId
+          });
+          return next;
+        }
+
+        // For new components
         if (newComponent.type === 'text') {
-          // For text nodes, store with special handling
-          next.set(newComponent.id, {
-            id: newComponent.id,
+          next.set(id, {
+            id,
             type: 'text',
             content: newComponent.content,
-            parentId: newComponent.parentId
+            parentId
           });
         } else {
-          // For regular components
-          next.set(newComponent.id, {
+          next.set(id, {
             ...newComponent,
-            parentId: newComponent.parentId
+            parentId
           });
         }
+
         return next;
       });
     };
