@@ -1,32 +1,32 @@
 [
     {'type': 'component_update', 'payload': {'component': {'type': 'Grid', 'id': 'Grid_1', 'module': 'muiElements', 'props': {'container': True, 'spacing': 2
                 }
-            }, 'timestamp': 1739284255.6353073
+            }, 'timestamp': 1739285156.573284
         }
     },
     {'type': 'component_update', 'payload': {'component': {'type': 'Grid', 'id': 'Grid_2', 'module': 'muiElements', 'props': {'item': True, 'xs': 12, 'sm': 6, 'md': 3
                 }, 'parentId': 'Grid_1'
-            }, 'timestamp': 1739284255.6363077
+            }, 'timestamp': 1739285156.5742838
         }
     },
     {'type': 'component_update', 'payload': {'component': {'type': 'Card', 'id': 'Card_3', 'module': 'muiElements', 'props': {'sx': {'display': 'flex', 'flexDirection': 'column', 'borderRadius': 3, 'overflow': 'hidden'
                     }, 'elevation': 1
                 }, 'parentId': 'Grid_2'
-            }, 'timestamp': 1739284255.6373096
+            }, 'timestamp': 1739285156.5752835
         }
     },
     {'type': 'component_update', 'payload': {'component': {'type': 'Avatar', 'id': 'Avatar_5', 'module': 'muiElements', 'props': {'sx': {'bgcolor': 'red'
                     }
                 }, 'parentId': 'Card_3'
-            }, 'timestamp': 1739284255.6383095
+            }, 'timestamp': 1739285156.5752835
         }
     },
     {'type': 'component_update', 'payload': {'component': {'type': 'IconButton', 'id': 'IconButton_7', 'module': 'muiElements', 'props': {}, 'parentId': 'Card_3'
-            }, 'timestamp': 1739284255.6393106
+            }, 'timestamp': 1739285156.5762842
         }
     },
     {'type': 'component_update', 'payload': {'component': {'type': 'MoreVert', 'id': 'MoreVert_6', 'module': 'muiIcons', 'props': {}, 'parentId': 'IconButton_7'
-            }, 'timestamp': 1739284255.640309
+            }, 'timestamp': 1739285156.5772843
         }
     },
     {'type': 'component_update', 'payload': {'component': {'type': 'CardHeader', 'id': 'CardHeader_8', 'module': 'muiElements', 'props': {'title': 'Shrimp and Chorizo Paella', 'subheader': 'September 14,
@@ -42,7 +42,7 @@
                         ]
                     }
                 }, 'parentId': 'Card_3'
-            }, 'timestamp': 1739284255.6413112
+            }, 'timestamp': 1739285156.5782847
         }
     },
-    {'type': 'component_update', 'payload': {'component': {'type': 'CardMedia', 'id': 'CardMedia_9', 'module': 'muiElements', 'props': {'component': 'img', 'height': 194, 'image': 'https: //mui.com/static/images/cards/paella.jpg', 'alt': 'Paella dish'}, 'parentId': 'Card_3'}, 'timestamp': 1739284255.6423101}}, {'type': 'component_update', 'payload': {'component': {'type': 'CardContent', 'id': 'CardContent_10', 'module': 'muiElements', 'props': {'sx': {'flex': 1}}, 'parentId': 'Card_3'}, 'timestamp': 1739284255.643311}}, {'type': 'component_update', 'payload': {'component': {'type': 'Typography', 'id': 'Typography_12', 'module': 'muiElements', 'props': {}, 'parentId': 'CardContent_10'}, 'timestamp': 1739284255.644824}}]
+    {'type': 'component_update', 'payload': {'component': {'type': 'CardMedia', 'id': 'CardMedia_9', 'module': 'muiElements', 'props': {'component': 'img', 'height': 194, 'image': 'https: //mui.com/static/images/cards/paella.jpg', 'alt': 'Paella dish'}, 'parentId': 'Card_3'}, 'timestamp': 1739285156.5792844}}, {'type': 'component_update', 'payload': {'component': {'type': 'CardContent', 'id': 'CardContent_10', 'module': 'muiElements', 'props': {'sx': {'flex': 1}}, 'parentId': 'Card_3'}, 'timestamp': 1739285156.5792844}}, {'type': 'component_update', 'payload': {'component': {'type': 'Typography', 'id': 'Typography_12', 'module': 'muiElements', 'props': {}, 'parentId': 'CardContent_10'}, 'timestamp': 1739285156.5802844}}]

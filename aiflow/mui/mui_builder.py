@@ -30,35 +30,48 @@ class MUIBuilder:
         return MUIIconAccess(self)
 
     def create_component(self, element: str, *args, **props) -> MUIComponent:
-        # Process text arguments first
-        text_children = []
-        for arg in args:
-            if isinstance(arg, (str, int, float)):
-                text_comp = MUIComponent(str(arg), module="text", builder=self)
-                text_children.append(text_comp)
+        # Process props first to identify any components used as props
+        processed_props = {}
+        for key, value in props.items():
+            if isinstance(value, MUIComponent):
+                value._is_prop = True
+                # Remove any existing parent relationship for prop components
+                value._parent = None
+                # Also mark any nested components as props
+                if hasattr(value, 'children'):
+                    for child in value.children:
+                        if isinstance(child, MUIComponent):
+                            child._is_prop = True
+                            child._parent = None
+                processed_props[key] = value
             else:
-                text_children.append(arg)
+                processed_props[key] = value
 
         # Create main component
         comp = MUIComponent(
             element, 
             module="muiElements", 
-            props=props, 
-            children=text_children,  # Add children directly
+            props=processed_props, 
             builder=self
         )
 
-        # Set parent relationships
-        for child in text_children:
-            child._parent = comp
+        # Process text arguments and non-prop children
+        for arg in args:
+            if isinstance(arg, (str, int, float)):
+                text_comp = MUIComponent(str(arg), module="text", builder=self)
+                text_comp._parent = comp
+                comp.children.append(text_comp)
+            elif isinstance(arg, MUIComponent) and not hasattr(arg, '_is_prop'):
+                arg._parent = comp
+                comp.children.append(arg)
 
-        # Handle stacking
-        if len(self._stack) > 0:
+        # Only add to parent's children if not a prop
+        if len(self._stack) > 0 and not hasattr(comp, '_is_prop'):
             parent = self._stack[-1]
             comp._parent = parent
             parent.children.append(comp)
 
-        # Print state immediately after children are added
+        # Create component tree immediately
         comp._component_creation()
 
         return comp

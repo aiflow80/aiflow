@@ -26,38 +26,41 @@ class MUIComponent:
         self.unique_id = self._builder.get_next_id() if self._builder else 0
 
     def _component_creation(self):
-        if self.type != "text" or not self._parent:
-            # Send the current component without its children
-            component_data = self.to_dict(include_children=False)
-            message = {
-                "type": "component_update",
-                "payload": {
-                    "component": component_data,
-                    "timestamp": time.time()
-                }
-            }
-            event_base.send_response_sync(message)
+        # Skip if this component is used as a prop
+        if hasattr(self, '_is_prop'):
+            return
 
-            # Send each child component separately
-            for child in self.children:
-                if isinstance(child, MUIComponent):
+        component_data = self.to_dict(include_children=False)
+        message = {
+            "type": "component_update",
+            "payload": {
+                "component": component_data,
+                "timestamp": time.time()
+            }
+        }
+        event_base.send_response_sync(message)
+
+        # Only process non-prop children
+        for child in self.children:
+            if isinstance(child, MUIComponent):
+                if not hasattr(child, '_is_prop'):
                     child._component_creation()
-                else:
-                    # Handle text nodes
-                    text_data = {
-                        "type": "text",
-                        "id": f"text_{self._builder.get_next_id()}",
-                        "content": str(child),
-                        "parentId": component_data["id"]
+            else:
+                # Handle text nodes
+                text_data = {
+                    "type": "text",
+                    "id": f"text_{self._builder.get_next_id()}",
+                    "content": str(child),
+                    "parentId": component_data["id"]
+                }
+                message = {
+                    "type": "component_update",
+                    "payload": {
+                        "component": text_data,
+                        "timestamp": time.time()
                     }
-                    message = {
-                        "type": "component_update",
-                        "payload": {
-                            "component": text_data,
-                            "timestamp": time.time()
-                        }
-                    }
-                    event_base.send_response_sync(message)
+                }
+                event_base.send_response_sync(message)
 
     def __enter__(self):
         if self._builder:
@@ -84,6 +87,9 @@ class MUIComponent:
         converted_props = {}
         for k, v in self.props.items():
             if isinstance(v, MUIComponent):
+                # For prop components, set their parent to this component
+                if hasattr(v, '_is_prop'):
+                    v._parent = self
                 converted_props[k] = v.to_dict()
             else:
                 converted_props[k] = v
