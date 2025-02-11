@@ -26,10 +26,11 @@ class MUIComponent:
         self.unique_id = self._builder.get_next_id() if self._builder else 0
 
     def _component_creation(self):
-        # Skip if this component is used as a prop
-        if hasattr(self, '_is_prop'):
+        # Skip if already created or is an unattached prop component
+        if hasattr(self, '_created') or (hasattr(self, '_is_prop') and not self._parent):
             return
 
+        # First create the parent component
         component_data = self.to_dict(include_children=False)
         message = {
             "type": "component_update",
@@ -39,12 +40,25 @@ class MUIComponent:
             }
         }
         event_base.send_response_sync(message)
+        self._created = True
 
-        # Only process non-prop children
+        # Then process prop components with this component as their parent
+        for prop_name, prop_value in self.props.items():
+            if isinstance(prop_value, MUIComponent):
+                # Ensure prop components have this component as parent
+                prop_value._parent = self
+                # Remove _is_prop flag since we're about to create it properly
+                if hasattr(prop_value, '_is_prop'):
+                    delattr(prop_value, '_is_prop')
+                prop_value._component_creation()
+
+        # Finally process regular children
         for child in self.children:
             if isinstance(child, MUIComponent):
-                if not hasattr(child, '_is_prop'):
-                    child._component_creation()
+                child._parent = self
+                if hasattr(child, '_is_prop'):
+                    delattr(child, '_is_prop')
+                child._component_creation()
             else:
                 # Handle text nodes
                 text_data = {
@@ -87,9 +101,6 @@ class MUIComponent:
         converted_props = {}
         for k, v in self.props.items():
             if isinstance(v, MUIComponent):
-                # For prop components, set their parent to this component
-                if hasattr(v, '_is_prop'):
-                    v._parent = self
                 converted_props[k] = v.to_dict()
             else:
                 converted_props[k] = v

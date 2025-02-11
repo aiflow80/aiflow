@@ -30,19 +30,11 @@ class MUIBuilder:
         return MUIIconAccess(self)
 
     def create_component(self, element: str, *args, **props) -> MUIComponent:
-        # Process props first to identify any components used as props
+        # Process props but don't create components yet
         processed_props = {}
         for key, value in props.items():
             if isinstance(value, MUIComponent):
                 value._is_prop = True
-                # Remove any existing parent relationship for prop components
-                value._parent = None
-                # Also mark any nested components as props
-                if hasattr(value, 'children'):
-                    for child in value.children:
-                        if isinstance(child, MUIComponent):
-                            child._is_prop = True
-                            child._parent = None
                 processed_props[key] = value
             else:
                 processed_props[key] = value
@@ -55,24 +47,18 @@ class MUIBuilder:
             builder=self
         )
 
-        # Process text arguments and non-prop children
+        # Process children
         for arg in args:
             if isinstance(arg, (str, int, float)):
                 text_comp = MUIComponent(str(arg), module="text", builder=self)
-                text_comp._parent = comp
                 comp.children.append(text_comp)
-            elif isinstance(arg, MUIComponent) and not hasattr(arg, '_is_prop'):
-                arg._parent = comp
-                comp.children.append(arg)
+            elif isinstance(arg, MUIComponent):
+                if not hasattr(arg, '_is_prop'):
+                    comp.children.append(arg)
 
-        # Only add to parent's children if not a prop
-        if len(self._stack) > 0 and not hasattr(comp, '_is_prop'):
-            parent = self._stack[-1]
-            comp._parent = parent
-            parent.children.append(comp)
-
-        # Create component tree immediately
-        comp._component_creation()
+        # Only create component tree for non-prop components
+        if not hasattr(comp, '_is_prop'):
+            comp._component_creation()
 
         return comp
 

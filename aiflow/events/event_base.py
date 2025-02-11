@@ -42,7 +42,6 @@ class EventBase:
 
     def queue_message(self, payload):
         self.message_queue.append(payload)
-        logger.info(f"Message queued. Queue size: {len(self.message_queue)}")
 
     async def _process_queued_messages(self):
         if self._processing:
@@ -53,14 +52,12 @@ class EventBase:
             while self.message_queue:
                 message = self.message_queue.popleft()
                 await self.send_response(message)
-                logger.debug(f"Processed queued message. Remaining: {len(self.message_queue)}")
         finally:
             self._processing = False
 
         logger.info("All queued messages processed")
 
     def send_response_sync(self, payload):
-        logger.debug(f"Queueing message: {payload.get('payload', {}).get('component', {}).get('id')}")
         if self._ws_client and self.session_id and not self._processing:
             self._processing = True
             try:
@@ -69,12 +66,10 @@ class EventBase:
                 self._processing = False
         else:
             self.queue_message(payload)
-            logger.debug(f"Message queued. Queue size: {len(self.message_queue)}")
 
     async def send_response(self, payload):
         try:
             await self._ws_client.send(payload)
-            logger.info("Response sent successfully")
         except Exception as e:
             logger.error(f"Failed to send response: {e}")
             self.queue_message(payload)
