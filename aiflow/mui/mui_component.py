@@ -27,17 +27,37 @@ class MUIComponent:
 
     def _component_creation(self):
         if self.type != "text" or not self._parent:
-            print(f"init {self.to_dict()}")
-            # Ensure consistent message format
+            # Send the current component without its children
+            component_data = self.to_dict(include_children=False)
             message = {
                 "type": "component_update",
                 "payload": {
-                    "component": self.to_dict(),
+                    "component": component_data,
                     "timestamp": time.time()
                 }
             }
-            
             event_base.send_response_sync(message)
+
+            # Send each child component separately
+            for child in self.children:
+                if isinstance(child, MUIComponent):
+                    child._component_creation()
+                else:
+                    # Handle text nodes
+                    text_data = {
+                        "type": "text",
+                        "id": f"text_{self._builder.get_next_id()}",
+                        "content": str(child),
+                        "parentId": component_data["id"]
+                    }
+                    message = {
+                        "type": "component_update",
+                        "payload": {
+                            "component": text_data,
+                            "timestamp": time.time()
+                        }
+                    }
+                    event_base.send_response_sync(message)
 
     def __enter__(self):
         if self._builder:
@@ -59,25 +79,40 @@ class MUIComponent:
                 
         return False
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self, include_children=True) -> Dict[str, Any]:
+        # Convert nested MUIComponents in props
+        converted_props = {}
+        for k, v in self.props.items():
+            if isinstance(v, MUIComponent):
+                converted_props[k] = v.to_dict()
+            else:
+                converted_props[k] = v
+
         if self.type == "text":
-            return {
+            data = {
                 "type": "text",
                 "id": f"text_{self.unique_id}",
                 "content": self.text_content
             }
+            if self._parent:
+                data["parentId"] = f"{self._parent.type}_{self._parent.unique_id}"
+            return data
             
         data = {
             "type": self.type,
             "id": f"{self.type}_{self.unique_id}",
             "module": self.module,
-            "props": self.props,
-            "children": [
-                child.to_dict() if isinstance(child, MUIComponent) 
+            "props": converted_props
+        }
+        
+        if self._parent:
+            data["parentId"] = f"{self._parent.type}_{self._parent.unique_id}"
+
+        if include_children:
+            data["children"] = [
+                child.to_dict() if isinstance(child, MUIComponent)
                 else {"type": "text", "content": str(child)}
                 for child in self.children
             ]
-        }
-        if self._parent:
-            data["parentId"] = f"{self._parent.type}_{self._parent.unique_id}"
+        
         return data

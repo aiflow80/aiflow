@@ -9,4 +9,4 @@ print("hello")
 
 with mui.Grid(container=True, spacing=2):
     with mui.Grid(item=True, xs=12):
-        mui.Typography("Chat Application", variant="h2", sx={"mb": 2})
+        mui.Typography("Chat Application", variant="h4", sx={"mb": 2})

@@ -19,6 +19,7 @@ class EventBase:
         self.session_id = None
         self._ws_client = None
         self.message_queue = deque()
+        self._processing = False
 
     def set_ws_client(self, client):
         self._ws_client = client
@@ -44,16 +45,31 @@ class EventBase:
         logger.info(f"Message queued. Queue size: {len(self.message_queue)}")
 
     async def _process_queued_messages(self):
-        while self.message_queue:
-            message = self.message_queue.popleft()
-            await self.send_response(message)
+        if self._processing:
+            return
+
+        self._processing = True
+        try:
+            while self.message_queue:
+                message = self.message_queue.popleft()
+                await self.send_response(message)
+                logger.debug(f"Processed queued message. Remaining: {len(self.message_queue)}")
+        finally:
+            self._processing = False
+
         logger.info("All queued messages processed")
 
     def send_response_sync(self, payload):
-        if self.session_id:
-            asyncio.run(self.send_response(payload))
+        logger.debug(f"Queueing message: {payload.get('payload', {}).get('component', {}).get('id')}")
+        if self._ws_client and self.session_id and not self._processing:
+            self._processing = True
+            try:
+                asyncio.run(self.send_response(payload))
+            finally:
+                self._processing = False
         else:
             self.queue_message(payload)
+            logger.debug(f"Message queued. Queue size: {len(self.message_queue)}")
 
     async def send_response(self, payload):
         try:
