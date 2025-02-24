@@ -23,12 +23,14 @@ def card_component():
                     avatar=mui.Avatar("R", sx={"bgcolor": "red"}),
                     action=mui.IconButton(mui.icon.MoreVert),
                 )
+
                 mui.CardMedia(
                     component="img",
-                    height=194,
+                    height=294,
                     image="https://mui.com/static/images/cards/paella.jpg",
                     alt="Paella dish",
                 )
+                
                 with mui.CardContent(sx={"flex": 1}):
                     mui.Typography(
                         "This impressive paella is a perfect party dish and a fun meal to cook together "
@@ -37,5 +39,3 @@ def card_component():
 
 if __name__ == "__main__":
     card_component()
-    final_json = mui.build()
-    print(final_json)  # Verify it matches c.json
