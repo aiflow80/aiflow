@@ -1,6 +1,8 @@
+import time
 from typing import List, Dict, Any, Set
 from aiflow.mui.mui_component import MUIComponent
 from aiflow.mui.mui_icons import MUIIcons
+from aiflow.events import event_base
 
 class MUIIconAccess:
     """Provides direct access to MUI icons without parentheses"""
@@ -109,10 +111,17 @@ class MUIBuilder:
             if processed_children and len(processed_children) == 1:
                 first_child = processed_children[0]
                 if isinstance(first_child, MUIComponent) and first_child.type == "text":
-                    prop = {"type": 'text', "content": first_child.text_content }
-                    component_dict["props"] = prop
+                    component_dict["content"] = first_child.text_content
             self._components.append(component_dict)
-        
+
+            event_base.send_response_sync({
+                "type": "component_update",
+                "payload": {
+                    "component": component_dict,
+                    "timestamp": time.time()
+                }
+            })
+
         return component
 
     def __getattr__(self, element: str):
