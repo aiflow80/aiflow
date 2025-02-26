@@ -26,10 +26,13 @@ class MUIComponent:
         self._prop_parent = None
 
         # Handle text content
-        if module == "text" or (children and len(children) == 1 and isinstance(children[0], (str, int, float))):
-            self.text_content = str(type_name if module == "text" else children[0])
+        if module == "text":
+            self.text_content = str(type_name)
         elif children:
-            self._process_children(children)
+            if len(children) == 1 and isinstance(children[0], (str, int, float)):
+                self.text_content = str(children[0])
+            else:
+                self._process_children(children)
 
     def _process_children(self, children):
         for idx, child in enumerate(children):
@@ -40,13 +43,13 @@ class MUIComponent:
                     "id": f"text_{self.unique_id}_{len(self.children)}"
                 })
             else:
+                child._parent = self
                 self.children.append(child)
 
     def _process_props(self) -> Dict[str, Any]:
         processed_props = {}
         for key, value in self.props.items():
             if isinstance(value, MUIComponent):
-                # Set the parent for prop components
                 value._parent = self
                 value._is_prop_component = True
                 processed_props[key] = value.to_dict()
@@ -55,57 +58,10 @@ class MUIComponent:
         return processed_props
 
     def __enter__(self):
-        if hasattr(self, '_is_prop'):
-            return self
-
-        component_data = self._create_component_data()
-        
-        if self._builder:
-            self._builder._stack.append(self)
+        if not hasattr(self, '_is_prop'):
+            if self._builder:
+                self._builder._stack.append(self)
         return self
-
-    def _create_component_data(self) -> Dict[str, Any]:
-        component_id = f"{self.type}_{self.unique_id}"
-        parent_id = None
-        
-        if self._parent:
-            parent_id = f"{self._parent.type}_{self._parent.unique_id}"
-            
-        data = {
-            "type": self.type,
-            "id": component_id,
-            "module": self.module,
-            "props": self._process_props(),
-            "parentId": parent_id,
-            "children": []
-        }
-
-        if self.text_content is not None:
-            data["content"] = self.text_content
-
-        if self.children:
-            for child in self.children:
-                if isinstance(child, dict) and child["type"] == "text":
-                    child_data = {
-                        "type": "text",
-                        "id": f"text_{self.unique_id}_{len(data['children'])}",
-                        "content": child["content"],
-                        "parentId": component_id
-                    }
-                    data["children"].append(child_data)
-                elif isinstance(child, MUIComponent):
-                    child._parent = self
-                    child_data = child.to_dict()
-                    child_data["parentId"] = component_id
-                    data["children"].append(child_data)
-
-        return data
-
-    def add_child(self, child: "MUIComponent") -> None:
-        child._parent = self
-        self._child_components.append(child)
-        if child not in self.children:
-            self.children.append(child)
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if self._builder and self._builder._stack:
@@ -119,12 +75,17 @@ class MUIComponent:
                 self._builder.root = self._builder._stack.pop()
         return False
 
+    def add_child(self, child: "MUIComponent") -> None:
+        child._parent = self
+        self._child_components.append(child)
+        if child not in self.children:
+            self.children.append(child)
+
     def to_dict(self) -> Dict[str, Any]:
         component_id = f"{self.type}_{self.unique_id}"
         parent_id = None
         
         if self._parent:
-            # Use immediate parent for prop components
             parent_id = f"{self._parent.type}_{self._parent.unique_id}"
             
         data = {
@@ -137,5 +98,21 @@ class MUIComponent:
         
         if self.text_content is not None:
             data["content"] = self.text_content
+            
+        if self.children and len(self.children) > 0:
+            data["children"] = []
+            for child in self.children:
+                if isinstance(child, dict) and child["type"] == "text":
+                    child_data = {
+                        "type": "text",
+                        "id": child["id"],
+                        "content": child["content"],
+                        "parentId": component_id
+                    }
+                    data["children"].append(child_data)
+                elif isinstance(child, MUIComponent):
+                    child_dict = child.to_dict()
+                    child_dict["parentId"] = component_id
+                    data["children"].append(child_dict)
             
         return data
