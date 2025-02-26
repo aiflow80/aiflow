@@ -17,12 +17,14 @@ class MUIBuilder:
         self._stack: List[MUIComponent] = []
         self._roots: List[MUIComponent] = []
         self._icons = MUIIcons(self)
-        self._id_counter = 0
+        self._id_counter = 1
         self.icon = MUIIconAccess(self)
         self._component_sequence = []  # List to track component creation and props
         self._components = []
         self._order_counter = 0
         self._current_parent_id = 0
+        self._component_hierarchy = {}  # Track parent-child relationships
+        self._current_parent = None
 
     def get_next_id(self) -> int:
         """Get next sequential ID starting from 0 (or 1)"""
@@ -50,9 +52,27 @@ class MUIBuilder:
         for key, value in props.items():
             if isinstance(value, MUIComponent):
                 value._is_prop = True
-                value._skip_update = True  # Add flag to skip direct updates
+                value._skip_update = True
+                # Track the component that will contain this prop
+                if self._stack:
+                    value._parent = self._stack[-1]
             processed[key] = value
         return processed
+
+    def _update_component_sequence(self, component_type: str, component_dict: dict, processed_props: dict, 
+                                processed_children: list, current_parent_id: str) -> None:
+
+        for item in self._component_sequence:
+            if item['type'] == component_type and item['props_updated'] == False:
+                item.update({
+                    'props_updated': True,
+                    'props': processed_props,
+                    'children': [child.to_dict() for child in processed_children],
+                    'component_id': component_dict["id"],
+                    'parent_id': current_parent_id,
+                    'text_content': component_dict.get("content"),
+                    'order': self._order_counter
+                })
 
     def create_component(self, element: str, *args, **props) -> MUIComponent:
         processed_props = self._process_props(props)
@@ -66,52 +86,71 @@ class MUIBuilder:
             builder=self
         )
         component.name = f"{element}_{self._order_counter}"
-        
-        # Find and update all matching components that haven't been updated
-        for comp_info in self._component_sequence:
-            if (comp_info['component'].startswith(f"{element}_") and 
-                not comp_info.get('props_updated', False)):
-                # Update props based on element type
-                merged_props = {**props}
-                comp_info['props'] = merged_props
-                comp_info['props_updated'] = True
-                comp_info['children'] = processed_children
-                
-                # Add text content if it exists in children  <-- ONLY NEW LINE
-                if processed_children and len(processed_children) == 1 and isinstance(processed_children[0], MUIComponent) and processed_children[0].type == "text":
-                    comp_info['content'] = processed_children[0].text_content
-                
-                # Set parent relationship
-                if self._stack:
-                    parent_component = next(
-                        (item for item in self._component_sequence 
-                         if item['component'] == self._stack[-1].name),
-                        None
-                    )
-                    if parent_component:
-                        comp_info['parent_id'] = parent_component.get('id')
-                break
 
-        # Create component dict
+        # Set parent relationship
+        current_parent_id = None
+        if self._stack:
+            parent = self._stack[-1]
+            current_parent_id = f"{parent.type}_{parent.unique_id}"
+            component._parent = parent
+
+        # Process props that are components to set correct parent
+        for prop_value in processed_props.values():
+            if isinstance(prop_value, MUIComponent):
+                prop_value._parent = component
+
+        # Create component info with children key
+        component_info = {
+            'id': self._order_counter,
+            'component': component.name,
+            'order': self._order_counter,
+            'props_updated': False,
+            'props': processed_props,
+            'parent_id': current_parent_id,
+            'children': []  # Initialize empty children list
+        }
+
+        # Update parent's children if exists
+        if current_parent_id and self._stack:
+            parent_info = next(
+                (item for item in self._component_sequence 
+                 if item['component'] == self._stack[-1].name),
+                None
+            )
+            if parent_info:
+                if 'children' not in parent_info:
+                    parent_info['children'] = []
+                parent_info['children'].append(component_info)
+
+        # Create component dict and handle children
         component_dict = component.to_dict()
         
-        # Add text content if it exists in children
+        # Update component dict for prop components
+        for key, value in processed_props.items():
+            if isinstance(value, MUIComponent):
+                value_dict = value.to_dict()
+                value_dict["parentId"] = component_dict["id"]
+
         if processed_children and len(processed_children) == 1:
             first_child = processed_children[0]
             if isinstance(first_child, MUIComponent) and first_child.type == "text":
-                component_dict["props"]["type"] = "text"
-                component_dict["props"]["content"] = first_child.text_content
+                component_dict["content"] = first_child.text_content
 
-        non_updated = [comp for comp in self._component_sequence 
-            if not comp.get('props_updated', False)]
-        
+        if current_parent_id:
+            component_dict["parentId"] = current_parent_id
+
+        # Update component sequence
+        self._update_component_sequence(
+            component.type, 
+            component_dict, 
+            processed_props, 
+            processed_children, 
+            current_parent_id
+        )
+
+        # Check for unupdated props before appending
+        non_updated = [item for item in self._component_sequence if not item['props_updated']]
         if len(non_updated) == 0:
-            component_dict = component.to_dict()
-            # Just add text content if present in first child
-            if processed_children and len(processed_children) == 1:
-                first_child = processed_children[0]
-                if isinstance(first_child, MUIComponent) and first_child.type == "text":
-                    component_dict["content"] = first_child.text_content
             self._components.append(component_dict)
 
             event_base.send_response_sync({
@@ -129,14 +168,16 @@ class MUIBuilder:
             self._order_counter += 1
             component_name = f"{element}_{self._order_counter}"
             print(component_name)
-
+            
             component_info = {
                 'id': self._order_counter,
+                'type': element,
                 'component': component_name,
                 'order': self._order_counter,
                 'props_updated': False,
                 'props': {},
-                'parent_id': None if not self._stack else self._stack[-1].unique_id
+                'parent_id': None if not self._stack else self._stack[-1].unique_id,
+                'children': []  # Initialize empty children list
             }
             self._component_sequence.append(component_info)
 
