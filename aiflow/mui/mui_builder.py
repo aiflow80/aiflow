@@ -91,9 +91,9 @@ class MUIBuilder:
                 prop_dict = value.to_dict()
                 prop_dict["parentId"] = component_dict["id"]
                 
-                if key in ("avatar", "action", "icon", "startIcon", "endIcon"):
-                    if not self._component_exists_in_array(prop_dict, component_dict["children"]):
-                        component_dict["children"].append(prop_dict)
+                # Add any MUI component to children regardless of property name
+                if not self._component_exists_in_array(prop_dict, component_dict["children"]):
+                    component_dict["children"].append(prop_dict)
                 
                 if value.text_content is not None:
                     text_id = f"text_{value.unique_id}"
@@ -186,12 +186,6 @@ class MUIBuilder:
 
         # Create component dict
         component_dict = component.to_dict()
-        
-        # # Handle single text child
-        # if processed_children and len(processed_children) == 1:
-        #     first_child = processed_children[0]
-        #     if isinstance(first_child, MUIComponent) and first_child.module == "text":
-        #         component_dict["content"] = first_child.text_content
 
         if current_parent_id:
             component_dict["parentId"] = current_parent_id
