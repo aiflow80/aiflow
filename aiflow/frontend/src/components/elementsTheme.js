@@ -28,28 +28,6 @@ const baseComponents = (colors) => ({
       }
     }
   },
-  MuiButton: {
-    styleOverrides: {
-      root: {
-        textTransform: 'none',
-        borderRadius: process.env.REACT_APP_BORDER_RADIUS,
-      }
-    },
-    defaultProps: {
-      disableElevation: true,
-    }
-  },
-  MuiCard: {
-    defaultProps: {
-      elevation: 1
-    },
-    styleOverrides: {
-      root: {
-        backgroundColor: colors.paper,
-        borderRadius: process.env.REACT_APP_BORDER_RADIUS
-      }
-    }
-  }
 });
 
 const createThemeWithColors = (mode, customColors = {}) => {
