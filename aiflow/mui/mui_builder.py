@@ -53,6 +53,7 @@ class MUIBuilder:
             if isinstance(value, MUIComponent):
                 value._is_prop = True
                 value._skip_update = True
+                value._prop_key = key  # Store the prop key for special component identification
                 if self._stack:
                     value._parent = self._stack[-1]
             processed[key] = value
@@ -85,14 +86,32 @@ class MUIBuilder:
         """Build a complete nested structure of the component including all props"""
         if "children" not in component_dict:
             component_dict["children"] = []
+        
+        # Identify special component props
+        special_component_props = {}
+        component_type = component_dict.get("type")
+        if component_type in MUIComponent._special_component_props:
+            special_prop_keys = MUIComponent._special_component_props[component_type]
+        else:
+            special_prop_keys = []
+            
+        # Store the prop keys that contain MUI components - we'll track these to avoid duplication
+        mui_component_props = {}
             
         for key, value in props.items():
             if isinstance(value, MUIComponent):
                 prop_dict = value.to_dict()
                 prop_dict["parentId"] = component_dict["id"]
                 
-                # Add any MUI component to children regardless of property name
-                if not self._component_exists_in_array(prop_dict, component_dict["children"]):
+                # Store component ID by prop key to track it
+                mui_component_props[key] = prop_dict["id"]
+                
+                # Special handling for components with special props
+                # If this is a special prop, include it in props instead of children
+                is_special_prop = key in special_prop_keys
+                
+                # Only add to children if it's not a special prop
+                if not is_special_prop and not self._component_exists_in_array(prop_dict, component_dict["children"]):
                     component_dict["children"].append(prop_dict)
                 
                 if value.text_content is not None:
@@ -134,6 +153,26 @@ class MUIBuilder:
                             # Only add if it doesn't already exist
                             if not self._component_exists_in_array(child, prop_dict["children"]):
                                 prop_dict["children"].append(child)
+        
+        # For special component props, ensure they're in the props instead of children
+        if special_prop_keys:
+            for key in special_prop_keys:
+                if key in props and isinstance(props[key], MUIComponent):
+                    component_dict["props"][key] = props[key].to_dict()
+        
+        # Remove MUI component objects from props that are not special
+        # We'll keep only primitive values, non-MUI objects, and special props
+        filtered_props = {}
+        for key, value in props.items():
+            if not isinstance(value, MUIComponent) or key in special_prop_keys:
+                if isinstance(value, MUIComponent) and key in special_prop_keys:
+                    # For special props, use the processed component dict
+                    filtered_props[key] = value.to_dict()
+                else:
+                    filtered_props[key] = value
+        
+        # Update the props in the component dictionary
+        component_dict["props"] = filtered_props
 
     def create_component(self, element: str, *args, **props) -> MUIComponent:
         processed_props = self._process_props(props)

@@ -3,6 +3,13 @@ import time
 
 class MUIComponent:
     _sent_components = {}
+    # Add this dictionary to define components with special props that should not be treated as children
+    _special_component_props = {
+        "CardHeader": ["avatar", "action"],
+        "ListItem": ["secondaryAction"],
+        "ListItemButton": ["secondaryAction"],
+        # Add more components with special props as needed
+    }
 
     def __init__(
         self,
@@ -24,15 +31,43 @@ class MUIComponent:
         self._parent_id = None
         self._is_prop_component = False
         self._prop_parent = None
+        self._special_props = {}  # Track special component props
 
         # Handle text content
         if module == "text":
             self.text_content = str(type_name)
         elif children:
-            if len(children) == 1 and isinstance(children[0], (str, int, float)):
-                self.text_content = str(children[0])
+            # Check if any children should actually be special props
+            if self.type in self._special_component_props:
+                self._process_special_children(children)
             else:
-                self._process_children(children)
+                if len(children) == 1 and isinstance(children[0], (str, int, float)):
+                    self.text_content = str(children[0])
+                else:
+                    self._process_children(children)
+
+    def _process_special_children(self, children):
+        """Process children and extract ones that should be special props"""
+        regular_children = []
+        
+        for idx, child in enumerate(children):
+            if isinstance(child, (str, int, float)):
+                regular_children.append(child)
+            else:
+                # Check if this child has a prop key that marks it as a special prop
+                special_found = False
+                if hasattr(child, '_prop_key') and child._prop_key in self._special_component_props.get(self.type, []):
+                    self.props[child._prop_key] = child
+                    special_found = True
+                
+                if not special_found:
+                    regular_children.append(child)
+        
+        # Process remaining regular children
+        if len(regular_children) == 1 and isinstance(regular_children[0], (str, int, float)):
+            self.text_content = str(regular_children[0])
+        else:
+            self._process_children(regular_children)
 
     def _process_children(self, children):
         for idx, child in enumerate(children):
@@ -52,7 +87,14 @@ class MUIComponent:
             if isinstance(value, MUIComponent):
                 value._parent = self
                 value._is_prop_component = True
-                processed_props[key] = value.to_dict()
+                value._prop_key = key  # Store the prop key for special component identification
+                
+                # For components with special props, include the component in the props
+                if self.type in self._special_component_props and key in self._special_component_props[self.type]:
+                    self._special_props[key] = value
+                    processed_props[key] = value.to_dict()
+                else:
+                    processed_props[key] = value.to_dict()
             else:
                 processed_props[key] = value
         return processed_props
@@ -76,6 +118,16 @@ class MUIComponent:
         return False
 
     def add_child(self, child: "MUIComponent") -> None:
+        # Check if this child should be a special prop instead
+        if self.type in self._special_component_props:
+            if hasattr(child, '_prop_key') and child._prop_key in self._special_component_props[self.type]:
+                self.props[child._prop_key] = child
+                child._parent = self
+                child._is_prop_component = True
+                self._special_props[child._prop_key] = child
+                return
+                
+        # Regular child handling
         child._parent = self
         self._child_components.append(child)
         if child not in self.children:
@@ -99,9 +151,20 @@ class MUIComponent:
         if self.text_content is not None:
             data["content"] = self.text_content
             
-        if self.children and len(self.children) > 0:
+        # Only include actual children, not special component props
+        children_to_include = []
+        for child in self.children:
+            # Skip children that are actually special props
+            if isinstance(child, MUIComponent) and hasattr(child, '_prop_key') and \
+               self.type in self._special_component_props and \
+               child._prop_key in self._special_component_props[self.type]:
+                continue
+                
+            children_to_include.append(child)
+            
+        if children_to_include:
             data["children"] = []
-            for child in self.children:
+            for child in children_to_include:
                 if isinstance(child, dict) and child["type"] == "text":
                     child_data = {
                         "type": "text",
