@@ -465,7 +465,8 @@ const ElementsApp = ({ args, theme }) => {
     <ElementsTheme theme={theme}>
       <Box sx={{ 
         width: '100%',
-        boxSizing: 'border-box'
+        boxSizing: 'border-box',
+        padding: '20px',
       }}>
         <ErrorBoundary 
           fallback={
