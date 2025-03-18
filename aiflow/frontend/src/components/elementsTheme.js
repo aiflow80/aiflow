@@ -12,24 +12,6 @@ const getThemeColors = (mode) => {
   return THEME_PRESETS[validMode];
 };
 
-const baseComponents = (colors) => ({
-  MuiCssBaseline: {
-    styleOverrides: {
-      '*': {
-        margin: 0,
-        padding: 0,
-        boxSizing: 'border-box',
-      },
-      'html, body, #root': {
-        width: '100%',
-        height: '100%',
-        backgroundColor: colors.background,
-        color: colors.text,
-      }
-    }
-  },
-});
-
 const createThemeWithColors = (mode, customColors = {}) => {
   const defaultColors = getThemeColors(mode);
   const colors = {
@@ -54,8 +36,8 @@ const createThemeWithColors = (mode, customColors = {}) => {
         primary: colors.text,
         secondary: colors.textSecondary,
       },
-    },
-    components: baseComponents(colors)
+    }
+    // Removed custom baseComponents to use MUI's default behavior
   });
 };
 
@@ -77,26 +59,10 @@ const ElementsTheme = ({ children, theme }) => {
   return <ThemeProvider theme={elementsTheme}>{children}</ThemeProvider>;
 };
 
-// Add static initialization method
+// Simplified initialization method to use MUI defaults
 ElementsTheme.initializeTheme = () => {
-  const colors = getThemeColors();
-  const style = document.createElement('style');
-  const css = `
-    *, *::before, *::after {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-    html, body, #root {
-      width: 100%;
-      height: 100%;
-      background-color: ${colors.background};
-      color: ${colors.text};
-    }
-  `;
-  
-  style.innerHTML = css;
-  document.head.insertBefore(style, document.head.firstChild);
+  // Let MUI handle default styling through ThemeProvider
+  // This method can be kept for backward compatibility or removed if not needed
 };
 
 export const getInitialThemeColors = () => getThemeColors();

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { dequal } from "dequal/lite";
 import { jsx } from "@emotion/react";
+import Box from "@mui/material/Box";
 
 import ElementsTheme from "./elementsTheme";
 
@@ -157,6 +158,7 @@ const convertNode = (node, renderElement) => {
     return renderElement(node);
   }
 
+  // Handle responsive props like sx properly
   const newObj = {};
   for (const key in node) {
     newObj[key] = convertNode(node[key], renderElement);
@@ -340,6 +342,7 @@ const ElementsApp = ({ args, theme }) => {
     return handlers;
   };
 
+  // Move renderElement after createEventHandlers to fix the reference error
   const renderElement = (node) => {
     const { module, type, props = {}, children = [], content } = node;
 
@@ -354,9 +357,11 @@ const ElementsApp = ({ args, theme }) => {
     const LoadedElement = loaders[module](type);
 
     const renderedChildren = children.map(child => renderElement(child));
+    
+    // Preserve all original props without modification
     const finalProps = { ...convertNode(props, renderElement) };
 
-    // Special handling for file inputs
+    // Special handling for file inputs only (this part is necessary)
     if (type === 'Input' && finalProps.type === 'file') {
       finalProps.key = `file-input-${Date.now()}`;
       finalProps.onClick = (e) => e.stopPropagation();
@@ -364,6 +369,7 @@ const ElementsApp = ({ args, theme }) => {
 
     if (finalProps.id) {
       const eventHandlers = createEventHandlers(finalProps.id, type, finalProps);
+      // Preserve component-specific behaviors
       if (type === 'DataGrid') {
         finalProps.components = { ...finalProps.components };
         Object.entries(eventHandlers).forEach(([eventName, handler]) => {
@@ -456,32 +462,35 @@ const ElementsApp = ({ args, theme }) => {
   }
 
   return (
-      <ElementsTheme theme={theme}>
-        <div style={{ padding: '16px', margin: '16px' }}>
-          <ErrorBoundary 
-            fallback={
-              <div style={{
-                padding: '20px',
-                margin: '20px',
-                backgroundColor: '#ffebee',
-                border: '1px solid #ef5350',
-                borderRadius: '4px',
-                minHeight: '800px',
-                color: '#d32f2f'
-              }}>
-                An error occurred while rendering the component.
-              </div>
-            } 
-            onError={(error) => send({ error: error.message })}
-          >
-            {uiTree.map((node, index) => (
-              <React.Fragment key={index}>
-                {renderElement(node)}
-              </React.Fragment>
-            ))}
-          </ErrorBoundary>
-        </div>
-      </ElementsTheme>
+    <ElementsTheme theme={theme}>
+      <Box sx={{ 
+        width: '100%',
+        boxSizing: 'border-box'
+      }}>
+        <ErrorBoundary 
+          fallback={
+            <div style={{
+              padding: '20px',
+              margin: '20px',
+              backgroundColor: '#ffebee',
+              border: '1px solid #ef5350',
+              borderRadius: '4px',
+              minHeight: '800px',
+              color: '#d32f2f'
+            }}>
+              An error occurred while rendering the component.
+            </div>
+          } 
+          onError={(error) => send({ error: error.message })}
+        >
+          {uiTree.map((node, index) => (
+            <React.Fragment key={index}>
+              {renderElement(node)}
+            </React.Fragment>
+          ))}
+        </ErrorBoundary>
+      </Box>
+    </ElementsTheme>
   );
 };
 

@@ -8,6 +8,7 @@ from aiflow import mui
 def card_component():
     with mui.Grid(container=True, spacing=2):
         with mui.Grid(item=True, xs=12, sm=6, md=3):
+            for i in range(2):
                 with mui.Card(
                     sx={
                         "display": "flex",
