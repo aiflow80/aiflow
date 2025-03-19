@@ -23,7 +23,7 @@ def card_component():
                                 title="Shrimp and Chorizo Paella",
                                 subheader="September 14, 2016",
                                 avatar=mui.Avatar("R", sx={"bgcolor": "red"}),
-                                action=mui.IconButton(mui.icon.MoreVert),
+                                action=mui.IconButton(mui.icon.MoreVert(sx={"transform": "rotate(45deg)"})),
                             )
 
                             mui.CardMedia(

@@ -10,7 +10,26 @@ class MUIIconAccess:
         self._builder = builder
 
     def __getattr__(self, icon_name: str) -> MUIComponent:
-        return MUIComponent(icon_name, module="muiIcons", builder=self._builder)
+        # Create icon component
+        icon = MUIComponent(icon_name, module="muiIcons", props={}, builder=self._builder)
+        
+        # Override __call__ to capture props
+        original_call = icon.__call__
+        
+        def enhanced_call(*args, **kwargs):
+            # Update props if provided
+            if kwargs:
+                for key, value in kwargs.items():
+                    icon.props[key] = value
+                    print(f"Direct icon {icon_name}: Setting prop {key} = {value}")
+                    
+            # Call original method
+            return original_call(*args, **kwargs)
+            
+        # Replace __call__ method
+        icon.__call__ = enhanced_call
+        
+        return icon
 
 class MUIBuilder:
     def __init__(self):
@@ -330,12 +349,49 @@ class MUIBuilder:
         def wrapped_add_child(child):
             # Call the original method first
             component._original_add_child(child)
+            
             # Now update the component dicts to reflect the new parent relationship
             child_id = f"{child.type}_{child.unique_id}"
             parent_id = f"{component.type}_{component.unique_id}"
             print(f"Updating component dicts: {child_id} should have parentId {parent_id}")
-            self._update_child_parent_id(child_id, parent_id)
             
+            # Check if child exists in components list and preserve its props
+            child_found = False
+            child_props = {}
+            
+            for comp in self._components:
+                if comp.get('id') == child_id:
+                    child_found = True
+                    if 'props' in comp:
+                        child_props = comp.get('props', {})
+                    comp['parentId'] = parent_id
+                    print(f"Updated parentId for {child_id} to {parent_id}")
+                    break
+            
+            # If child not found, add it with correct parent
+            if not child_found:
+                child_dict = child.to_dict()
+                child_dict['parentId'] = parent_id
+                self._components.append(child_dict)
+                print(f"Added component {child_id} with parentId {parent_id}")
+            
+            # Send the updated child through event system
+            for comp in self._components:
+                if comp.get('id') == child_id:
+                    # Ensure props are preserved
+                    if not comp.get('props') and hasattr(child, 'props'):
+                        comp['props'] = child.props
+                    
+                    event_base.send_response_sync({
+                        "type": "component_update",
+                        "payload": {
+                            "component": comp,
+                            "timestamp": time.time()
+                        }
+                    })
+                    print(f"Sending updated component: {comp}")
+                    break
+        
         # Replace the add_child method with our wrapped version
         component.add_child = wrapped_add_child
 

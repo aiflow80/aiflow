@@ -46,7 +46,6 @@ class MUIComponent:
                 else:
                     self._process_children(children)
 
-    # Update __call__ method to accept keyword arguments
     def __call__(self, *args, **kwargs):
         """
         Makes the component callable to add children to it.
@@ -68,12 +67,12 @@ class MUIComponent:
                 self.text_content = str(arg)
                 print(f"  Setting text content on {self.type}_{self.unique_id}: '{str(arg)[:30]}...' if len > 30 else str(arg)")
             elif isinstance(arg, MUIComponent):
+                # Before adding, ensure props are preserved
+                if hasattr(arg, 'props') and arg.props:
+                    print(f"  Preserving props for {arg.type}_{arg.unique_id}: {arg.props}")
+                
                 # Add component as child
                 print(f"  Adding child {arg.type}_{arg.unique_id} to {self.type}_{self.unique_id} via __call__")
-                # Update the parentId in the component dictionaries
-                if self._builder:
-                    # The parent-child relationship will be updated in add_child
-                    pass
                 self.add_child(arg)
                 
         return self
