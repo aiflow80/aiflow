@@ -72,26 +72,26 @@ def earningcard():
                                 # Add onClick event handler if needed
                             )(mui.IconButton(mui.icon.MoreHoriz))
                 # Second row with amount and icon
-                # with mui.Grid(item=True):
-                #     with mui.Grid(container=True, alignItems="center"):
-                #         mui.Typography(
-                #             "$500.00",
-                #             sx={
-                #                 "fontSize": "2.125rem",
-                #                 "fontWeight": 500,
-                #                 "mr": 1,
-                #                 "mt": 1.25,
-                #                 "mb": 0.75,
-                #             },
-                #         )
-                #         mui.Avatar(
-                #             sx={
-                #                 "backgroundColor": "secondary.100",
-                #                 "width": 30,
-                #                 "height": 30,
-                #             },
-                #         )(mui.icon.ArrowUpward(sx={"transform": "rotate(45deg)"}))
-                # # Third row with description
+                with mui.Grid(item=True):
+                    with mui.Grid(container=True, alignItems="center"):
+                        mui.Typography(
+                            "$500.00",
+                            sx={
+                                "fontSize": "2.125rem",
+                                "fontWeight": 500,
+                                "mr": 1,
+                                "mt": 1.25,
+                                "mb": 0.75,
+                            },
+                        )
+                        mui.Avatar(
+                            sx={
+                                "backgroundColor": "secondary.100",
+                                "width": 30,
+                                "height": 30,
+                            },
+                        )(mui.icon.ArrowUpward(sx={"transform": "rotate(45deg)"}))
+                # Third row with description
                 # with mui.Grid(item=True, sx={"mb": 1.25}):
                 #     mui.Typography(
                 #         "Total Earning",

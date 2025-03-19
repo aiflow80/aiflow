@@ -350,6 +350,8 @@ class MUIBuilder:
                 }
             })
 
+            print(f"sending component: {component_dict}")
+
         return component
     
     def __getattr__(self, element: str):
