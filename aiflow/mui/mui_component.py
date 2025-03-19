@@ -46,6 +46,29 @@ class MUIComponent:
                 else:
                     self._process_children(children)
 
+    # Update __call__ method to accept keyword arguments
+    def __call__(self, *args, **kwargs):
+        """
+        Makes the component callable to add children to it.
+        This allows syntax like: mui.Avatar(...)(mui.IconButton(...))
+        And with keyword arguments: mui.Avatar(...)(mui.IconButton(...), sx={...})
+        """
+        # Process keyword arguments as additional props
+        if kwargs:
+            for key, value in kwargs.items():
+                self.props[key] = value
+        
+        # Process positional arguments as children
+        for arg in args:
+            if isinstance(arg, (str, int, float)):
+                # Handle text content
+                self.text_content = str(arg)
+            elif isinstance(arg, MUIComponent):
+                # Add component as child
+                self.add_child(arg)
+                
+        return self
+
     def _process_special_children(self, children):
         """Process children and extract ones that should be special props"""
         regular_children = []
