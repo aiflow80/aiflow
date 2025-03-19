@@ -53,24 +53,34 @@ class MUIComponent:
         This allows syntax like: mui.Avatar(...)(mui.IconButton(...))
         And with keyword arguments: mui.Avatar(...)(mui.IconButton(...), sx={...})
         """
+        print(f"__call__ for {self.type}_{self.unique_id} with {len(args)} args, {len(kwargs)} kwargs")
+        
         # Process keyword arguments as additional props
         if kwargs:
             for key, value in kwargs.items():
                 self.props[key] = value
+                print(f"  Setting prop {key} on {self.type}_{self.unique_id}")
         
         # Process positional arguments as children
         for arg in args:
             if isinstance(arg, (str, int, float)):
                 # Handle text content
                 self.text_content = str(arg)
+                print(f"  Setting text content on {self.type}_{self.unique_id}: '{str(arg)[:30]}...' if len > 30 else str(arg)")
             elif isinstance(arg, MUIComponent):
                 # Add component as child
+                print(f"  Adding child {arg.type}_{arg.unique_id} to {self.type}_{self.unique_id} via __call__")
+                # Update the parentId in the component dictionaries
+                if self._builder:
+                    # The parent-child relationship will be updated in add_child
+                    pass
                 self.add_child(arg)
                 
         return self
 
     def _process_special_children(self, children):
         """Process children and extract ones that should be special props"""
+        print(f"Processing special children for {self.type}_{self.unique_id}")
         regular_children = []
         
         for idx, child in enumerate(children):
@@ -81,6 +91,7 @@ class MUIComponent:
                 special_found = False
                 if hasattr(child, '_prop_key') and child._prop_key in self._special_component_props.get(self.type, []):
                     self.props[child._prop_key] = child
+                    print(f"  Found special prop component {child.type}_{child.unique_id} for key '{child._prop_key}' in {self.type}_{self.unique_id}")
                     special_found = True
                 
                 if not special_found:
@@ -89,19 +100,25 @@ class MUIComponent:
         # Process remaining regular children
         if len(regular_children) == 1 and isinstance(regular_children[0], (str, int, float)):
             self.text_content = str(regular_children[0])
+            print(f"  Setting text content from special children for {self.type}_{self.unique_id}")
         else:
             self._process_children(regular_children)
 
     def _process_children(self, children):
+        print(f"Processing {len(children)} children for {self.type}_{self.unique_id}")
         for idx, child in enumerate(children):
             if isinstance(child, (str, int, float)):
+                text_id = f"text_{self.unique_id}_{len(self.children)}"
+                print(f"  Adding text child with id {text_id} to {self.type}_{self.unique_id}")
                 self.children.append({
                     "type": "text",
                     "content": str(child),
-                    "id": f"text_{self.unique_id}_{len(self.children)}"
+                    "id": text_id
                 })
             else:
                 child._parent = self
+                child._parent_id = f"{self.type}_{self.unique_id}"
+                print(f"  Setting parent of {child.type}_{child.unique_id} to {self.type}_{self.unique_id} in _process_children")
                 self.children.append(child)
 
     def _process_props(self) -> Dict[str, Any]:
@@ -109,12 +126,15 @@ class MUIComponent:
         for key, value in self.props.items():
             if isinstance(value, MUIComponent):
                 value._parent = self
+                value._parent_id = f"{self.type}_{self.unique_id}"
+                print(f"_process_props: Setting parent of prop component {value.type}_{value.unique_id} to {self.type}_{self.unique_id} for key {key}")
                 value._is_prop_component = True
                 value._prop_key = key  # Store the prop key for special component identification
                 
                 # For components with special props, include the component in the props
                 if self.type in self._special_component_props and key in self._special_component_props[self.type]:
                     self._special_props[key] = value
+                    print(f"_process_props: Found special prop {key} for {self.type}_{self.unique_id}")
                     processed_props[key] = value.to_dict()
                 else:
                     processed_props[key] = value.to_dict()
@@ -134,6 +154,7 @@ class MUIComponent:
                 current = self._builder._stack.pop()
                 parent = self._builder._stack[-1]
                 current._parent = parent
+                current._parent_id = f"{parent.type}_{parent.unique_id}"
                 if current not in parent.children:
                     parent.children.append(current)
             else:
@@ -146,12 +167,16 @@ class MUIComponent:
             if hasattr(child, '_prop_key') and child._prop_key in self._special_component_props[self.type]:
                 self.props[child._prop_key] = child
                 child._parent = self
+                child._parent_id = f"{self.type}_{self.unique_id}"
                 child._is_prop_component = True
                 self._special_props[child._prop_key] = child
+                print(f"Added {child.type}_{child.unique_id} as special prop '{child._prop_key}' to {self.type}_{self.unique_id}")
                 return
                 
         # Regular child handling
         child._parent = self
+        child._parent_id = f"{self.type}_{self.unique_id}"
+        print(f"Adding child {child.type}_{child.unique_id} to parent {self.type}_{self.unique_id}")
         self._child_components.append(child)
         if child not in self.children:
             self.children.append(child)
@@ -162,6 +187,7 @@ class MUIComponent:
         
         if self._parent:
             parent_id = f"{self._parent.type}_{self._parent.unique_id}"
+            print(f"to_dict: Setting parentId for {component_id} to {parent_id}")
             
         data = {
             "type": self.type,
@@ -195,10 +221,12 @@ class MUIComponent:
                         "content": child["content"],
                         "parentId": component_id
                     }
+                    print(f"to_dict: Setting parentId for text child {child['id']} to {component_id}")
                     data["children"].append(child_data)
                 elif isinstance(child, MUIComponent):
                     child_dict = child.to_dict()
                     child_dict["parentId"] = component_id
+                    print(f"to_dict: Setting parentId for child {child_dict['id']} to {component_id}")
                     data["children"].append(child_dict)
             
         return data

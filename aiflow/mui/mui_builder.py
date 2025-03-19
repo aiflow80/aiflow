@@ -41,8 +41,11 @@ class MUIBuilder:
         processed = []
         for arg in args:
             if isinstance(arg, (str, int, float)):
-                processed.append(MUIComponent(str(arg), module="text", builder=self))
+                text_component = MUIComponent(str(arg), module="text", builder=self)
+                print(f"_process_args: Created text component {text_component.type}_{text_component.unique_id}")
+                processed.append(text_component)
             elif isinstance(arg, MUIComponent) and not hasattr(arg, '_is_prop'):
+                print(f"_process_args: Processing component {arg.type}_{arg.unique_id}")
                 processed.append(arg)
         return processed
 
@@ -56,6 +59,8 @@ class MUIBuilder:
                 value._prop_key = key  # Store the prop key for special component identification
                 if self._stack:
                     value._parent = self._stack[-1]
+                    value._parent_id = f"{self._stack[-1].type}_{self._stack[-1].unique_id}"
+                    print(f"_process_props: Setting prop component {value.type}_{value.unique_id} parent to {self._stack[-1].type}_{self._stack[-1].unique_id}")
             processed[key] = value
         return processed
 
@@ -101,7 +106,9 @@ class MUIBuilder:
         for key, value in props.items():
             if isinstance(value, MUIComponent):
                 prop_dict = value.to_dict()
+                old_parent_id = prop_dict.get("parentId")
                 prop_dict["parentId"] = component_dict["id"]
+                print(f"_build_complete_component_structure: Changing parentId for prop component {prop_dict['id']} from {old_parent_id} to {component_dict['id']}")
                 
                 # Store component ID by prop key to track it
                 mui_component_props[key] = prop_dict["id"]
@@ -112,6 +119,7 @@ class MUIBuilder:
                 
                 # Only add to children if it's not a special prop
                 if not is_special_prop and not self._component_exists_in_array(prop_dict, component_dict["children"]):
+                    print(f"_build_complete_component_structure: Adding component {prop_dict['id']} to children of {component_dict['id']}")
                     component_dict["children"].append(prop_dict)
                 
                 if value.text_content is not None:
@@ -142,18 +150,24 @@ class MUIBuilder:
                     for child in value.children:
                         if isinstance(child, MUIComponent):
                             child_dict = child.to_dict()
+                            old_child_parent = child_dict.get("parentId")
                             child_dict["parentId"] = prop_dict["id"]
+                            print(f"_build_complete_component_structure: Changing parentId for child {child_dict['id']} from {old_child_parent} to {prop_dict['id']}")
                             
                             # Only add if it doesn't already exist
                             if not self._component_exists_in_array(child_dict, prop_dict["children"]):
+                                print(f"_build_complete_component_structure: Adding component {child_dict['id']} to children of {prop_dict['id']}")
                                 prop_dict["children"].append(child_dict)
                         elif isinstance(child, dict) and child.get("type") == "text":
+                            old_text_parent = child.get("parentId")
                             child["parentId"] = prop_dict["id"]
+                            print(f"_build_complete_component_structure: Changing parentId for text child {child['id']} from {old_text_parent} to {prop_dict['id']}")
                             
                             # Only add if it doesn't already exist
                             if not self._component_exists_in_array(child, prop_dict["children"]):
+                                print(f"_build_complete_component_structure: Adding text child {child['id']} to children of {prop_dict['id']}")
                                 prop_dict["children"].append(child)
-        
+
         # For special component props, ensure they're in the props instead of children
         if special_prop_keys:
             for key in special_prop_keys:
@@ -174,6 +188,66 @@ class MUIBuilder:
         # Update the props in the component dictionary
         component_dict["props"] = filtered_props
 
+    def _update_parent_ids(self, component: MUIComponent) -> None:
+        """
+        Recursively update parent IDs for a component and all its children
+        to ensure the component hierarchy is correctly represented.
+        """
+        # Find the component in our components list
+        component_id = f"{component.type}_{component.unique_id}"
+        component_dict = None
+        
+        for comp in self._components:
+            if comp.get('id') == component_id:
+                component_dict = comp
+                break
+        
+        if not component_dict:
+            print(f"Warning: Could not find component {component_id} in component list")
+            return
+            
+        # Update parent IDs for all children
+        if hasattr(component, 'children') and component.children:
+            for child in component.children:
+                if isinstance(child, MUIComponent):
+                    child_id = f"{child.type}_{child.unique_id}"
+                    
+                    # Update parent ID in the child's stored dictionary
+                    self._update_child_parent_id(child_id, component_id)
+                    
+                    # Recursively update the child's children
+                    self._update_parent_ids(child)
+    
+    def _update_child_parent_id(self, child_id: str, parent_id: str) -> None:
+        """Update the parentId for a specific component in the components list"""
+        # First look in main components list
+        for comp in self._components:
+            if comp.get('id') == child_id:
+                old_parent = comp.get('parentId')
+                comp['parentId'] = parent_id
+                print(f"_update_child_parent_id: Updated {child_id} parentId from {old_parent} to {parent_id}")
+                
+                # Also update in children arrays of all components
+                self._update_parent_id_in_children(self._components, child_id, parent_id)
+                return
+                
+        print(f"Warning: Could not find component {child_id} to update its parentId")
+    
+    def _update_parent_id_in_children(self, components_list: List[Dict[str, Any]], 
+                                     child_id: str, parent_id: str) -> None:
+        """Recursively search through component children to update parentId"""
+        for comp in components_list:
+            if comp.get('children'):
+                for child in comp.get('children'):
+                    if child.get('id') == child_id:
+                        old_parent = child.get('parentId')
+                        child['parentId'] = parent_id
+                        print(f"_update_parent_id_in_children: Updated {child_id} parentId from {old_parent} to {parent_id} in children list")
+                    
+                    # Continue recursion if this child has children
+                    if child.get('children'):
+                        self._update_parent_id_in_children(child.get('children'), child_id, parent_id)
+
     def create_component(self, element: str, *args, **props) -> MUIComponent:
         processed_props = self._process_props(props)
         processed_children = self._process_args(args)
@@ -193,12 +267,19 @@ class MUIBuilder:
             parent = self._stack[-1]
             current_parent_id = f"{parent.type}_{parent.unique_id}"
             component._parent = parent
+            component._parent_id = current_parent_id
+            print(f"create_component: Creating component {component.name} with parent {current_parent_id}")
+        else:
+            print(f"create_component: Creating root component {component.name} (no parent)")
 
         # Process props that are components
-        for prop_value in processed_props.values():
+        for key, prop_value in processed_props.items():
             if isinstance(prop_value, MUIComponent):
                 prop_value._parent = component
+                prop_value._parent_id = f"{component.type}_{component.unique_id}"
+                print(f"create_component: Setting parent of prop component {prop_value.type}_{prop_value.unique_id} to {component.type}_{component.unique_id}")
                 prop_value._is_prop_component = True
+                prop_value._prop_key = key
         
         # Create component info
         component_info = {
@@ -227,7 +308,9 @@ class MUIBuilder:
         component_dict = component.to_dict()
 
         if current_parent_id:
+            old_parent_id = component_dict.get("parentId")
             component_dict["parentId"] = current_parent_id
+            print(f"create_component: {component_dict['id']} parentId {'set to' if old_parent_id is None else 'changed from '+old_parent_id+' to'} {current_parent_id}")
 
         # Update component sequence
         self._update_component_sequence(
@@ -240,6 +323,21 @@ class MUIBuilder:
 
         # Process prop components
         self._build_complete_component_structure(component_dict, processed_props)
+
+        # Add tracking for __call__ parent changes
+        component._original_add_child = component.add_child
+        
+        def wrapped_add_child(child):
+            # Call the original method first
+            component._original_add_child(child)
+            # Now update the component dicts to reflect the new parent relationship
+            child_id = f"{child.type}_{child.unique_id}"
+            parent_id = f"{component.type}_{component.unique_id}"
+            print(f"Updating component dicts: {child_id} should have parentId {parent_id}")
+            self._update_child_parent_id(child_id, parent_id)
+            
+        # Replace the add_child method with our wrapped version
+        component.add_child = wrapped_add_child
 
         # Check for unupdated props before appending
         if not [item for item in self._component_sequence if not item['props_updated']]:
@@ -258,8 +356,9 @@ class MUIBuilder:
         if not element.startswith('__'):
             self._order_counter += 1
             component_name = f"{element}_{self._order_counter}"
-            print(component_name)
+            print(f"Preparing to create component: {component_name}")
             
+            current_parent = None if not self._stack else f"{self._stack[-1].type}_{self._stack[-1].unique_id}"
             self._component_sequence.append({
                 'id': self._order_counter,
                 'type': element,
@@ -270,6 +369,7 @@ class MUIBuilder:
                 'parent_id': None if not self._stack else self._stack[-1].unique_id,
                 'children': []
             })
+            print(f"Component {component_name} will have parent_id: {current_parent}")
 
         def component_creator(*args, **props):
             return self.create_component(element, *args, **props)
