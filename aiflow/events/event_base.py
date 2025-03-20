@@ -18,6 +18,7 @@ class EventBase:
         self.session_id = None
         self._ws_client = None
         self.caller_file = None
+        self.paired = False
         self.message_queue = deque()
         self._processing = False
         self._ready = threading.Event()
@@ -43,6 +44,12 @@ class EventBase:
             await self.send_response(response)
             logger.info(f"paired session: {self.session_id} client: {self.sender_id}")
 
+            if self.paired:
+                logger.info(f"Already paired with session: {self.session_id} client: {self.sender_id}")
+            else:
+                self.paired = True
+                logger.info(f"Paired session: {self.session_id} with client: {self.sender_id}")
+                
             # Mark as ready after first message is processed
             self._ready.set()
 
