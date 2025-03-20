@@ -27,19 +27,22 @@ class WebSocketClient:
         self._ready = asyncio.Event()
         self._running = True
         self._message_handlers = {}
-        threading.Thread(target=self._background_init, name="WSClientInit", daemon=False).start()
+        threading.Thread(target=self._start_asyncio_loop, name="WSClientInit", daemon=False).start()
 
-    def _background_init(self):
+    def _start_asyncio_loop(self):
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         try:
             loop.run_until_complete(self.connect())
-            while self._running:
-                loop.run_until_complete(asyncio.sleep(1))
+            loop.run_until_complete(self._run_event_loop())
         except Exception as e:
-            logger.error(f"Background initialization failed: {e}")
+            logger.error(f"WebSocket client loop failed: {e}")
         finally:
             loop.close()
+
+    async def _run_event_loop(self):
+        while self._running:
+            await asyncio.sleep(1)
 
     def register_handler(self, message_type: str, callback):
         self._message_handlers[message_type] = callback
@@ -52,20 +55,19 @@ class WebSocketClient:
         except Exception as e:
             logger.error(f"Error processing message: {e}")
 
-    def on_message(self, message):
-        """Handle incoming WebSocket messages"""
-        # Create task to handle message asynchronously
-        asyncio.create_task(self._handle_message(message))
-
     async def _listen_messages(self):
         while self._connected.is_set():
             try:
-                if message := await self.client.read_message():
+                message = await self.client.read_message()
+                if message:
                     await self._handle_message(message)
                 else:
                     break
-            except Exception:
+            except Exception as e:
+                logger.error(f"Error reading message: {e}")
                 break
+                
+        # Connection lost
         self._connected.clear()
         self._ready.clear()
         await self.connect(force_reconnect=True)
@@ -76,12 +78,11 @@ class WebSocketClient:
         if self._connected.is_set() and self.client and not self.client.close_code:
             return
 
-        attempt = 0
-        while True:
+        for attempt in range(config.websocket.retry_max_attempts):
             try:
-                delay = min(config.websocket.retry_base_delay * (2 ** attempt), 
-                          config.websocket.retry_max_delay)
                 if attempt > 0:
+                    delay = min(config.websocket.retry_base_delay * (2 ** attempt), 
+                              config.websocket.retry_max_delay)
                     await asyncio.sleep(delay)
 
                 self.client = await websocket_connect(
@@ -98,8 +99,8 @@ class WebSocketClient:
                 return
             except Exception as e:
                 logger.error(f"Connection attempt {attempt + 1} failed: {str(e)}")
-                if (attempt := attempt + 1) >= config.websocket.retry_max_attempts:
-                    raise ConnectionError("Max retry attempts reached")
+        
+        raise ConnectionError("Max retry attempts reached")
 
     async def wait_for_ready(self, timeout=10):
         await asyncio.wait_for(self._ready.wait(), timeout=timeout)
