@@ -36,8 +36,6 @@ def card_component():
                             alt="Paella dish",
                         )
 
-                        time.sleep(1)
-
                         with mui.CardContent(sx={"flex": 1}):
                             with mui.Typography(
                                 "This impressive paella is a perfect party dish and a fun meal to cook together "

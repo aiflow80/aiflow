@@ -17,27 +17,32 @@ class EventBase:
         self.sender_id = None
         self.session_id = None
         self._ws_client = None
+        self.caller_file = None
         self.message_queue = deque()
         self._processing = False
         self._ready = threading.Event()
 
     def set_ws_client(self, client):
         self._ws_client = client
-
+    
+    def set_caller_file(self, caller_file):
+        self.caller_file = caller_file
+        
     async def pair(self, message):
         self.last_message = message.get('payload')
         self.sender_id = message.get('sender_id')
-        self.client_id = message.get('client_id')
+        self.session_id = message.get('client_id')
 
         if self.sender_id:
             response = {
                 "type": "message",
                 "client_id": self.sender_id,
-                "sender_id": self.client_id,
+                "sender_id": self.session_id,
                 "payload": f"Received your message: {self.last_message}"
             }
             await self.send_response(response)
-            logger.info(f"Message sent to {self.sender_id}: {response}")
+            logger.info(f"paired session: {self.session_id} client: {self.sender_id}")
+
             # Mark as ready after first message is processed
             self._ready.set()
 
