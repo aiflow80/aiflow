@@ -1,11 +1,24 @@
 from .logger import root_logger as logger
 
 logger.info("Initializing aiflow...")
-from .launcher import Launcher
-from .mui import mui
+from aiflow.launcher import Launcher
+from aiflow.mui import mui
+from aiflow.events.event_base import event_base
 
-launcher = Launcher()  # Create instance without starting server
+launcher = Launcher()  
+
+def init(wait_timeout=30):
+    ready = event_base.wait_until_ready(timeout=wait_timeout)
+    if ready:
+        logger.info("EventBase is ready, rendering can begin")
+    else:
+        logger.warning("EventBase not ready, timeout occurred")
+    
+    return ready
 
 logger.info("aiflow initialization completed")
+
+if init():
+    pass
 
 __all__ = ['mui']

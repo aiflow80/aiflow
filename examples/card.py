@@ -3,12 +3,12 @@ import sys
 import time
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from aiflow import mui
+from aiflow import mui, init
 
 def card_component():
         with mui.Grid(item=True, xs=12):
             with mui.Grid(container=True, spacing=2):
-                for i in range(2):
+                # for i in range(2):
                     with mui.Grid(item=True, lg=4, md=6, sm=6, xs=12):
                         with mui.Card(
                             sx={
@@ -33,11 +33,16 @@ def card_component():
                                 alt="Paella dish",
                             )
                             
+                            time.sleep(1)
+
                             with mui.CardContent(sx={"flex": 1}):
-                                mui.Typography(
+                                with mui.Typography(
                                     "This impressive paella is a perfect party dish and a fun meal to cook together "
                                     "with your guests. Add 1 cup of frozen peas along with the mussels, if you like."
-                                )
+                                ):  
+                                     for i in range(2):
+                                        time.sleep(1)
+                                        mui.Avatar("R", sx={"bgcolor": "red", "marginTop": 1})
 
 if __name__ == "__main__":
     card_component()
