@@ -4,7 +4,7 @@ import time
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from aiflow import mui, init
+from aiflow import mui
 
 def card_component():
     with mui.Grid(item=True, xs=12):

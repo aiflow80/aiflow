@@ -8,9 +8,9 @@ import threading
 from contextlib import suppress
 import time
 from typing import Optional
-from .network.ws_client import client as ws_client
-from .logger import setup_logger
-from .config import config
+from aiflow.network.ws_client import client as ws_client
+from aiflow.logger import setup_logger
+from aiflow.config import config
 
 logger = setup_logger('Launcher')
 
@@ -178,10 +178,16 @@ class Launcher:
 
     @staticmethod
     def _get_caller_info() -> str:
-        stack = inspect.stack()
-        for frame in stack:
-            if frame.filename != __file__ and not frame.filename.startswith('<'):
-                return frame.filename
+        try:
+            main_module = sys.modules['__main__']
+            if hasattr(main_module, '__file__'):
+                main_file = os.path.abspath(main_module.__file__)
+                launcher_file = os.path.abspath(__file__)
+                if main_file != launcher_file:
+                    return main_file
+        except Exception as e:
+            logger.debug(f"Error finding caller info: {e}")
+        
         return 'unknown'
 
     def _setup_signal_handlers(self):

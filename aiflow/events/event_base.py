@@ -1,9 +1,7 @@
 import asyncio
 from collections import deque
-from aiflow.logger import setup_logger
+from aiflow import logger
 import threading
-
-logger = setup_logger('EventBase')
 
 class EventBase:
     _instance = None
@@ -30,10 +28,8 @@ class EventBase:
         self.last_message = message.get('payload')
         self.sender_id = message.get('sender_id')
         self.client_id = message.get('client_id')
-        
+
         if self.sender_id:
-            # await self._process_queued_messages()
-            
             response = {
                 "type": "message",
                 "client_id": self.sender_id,
@@ -41,30 +37,15 @@ class EventBase:
                 "payload": f"Received your message: {self.last_message}"
             }
             await self.send_response(response)
+            logger.info(f"Message sent to {self.sender_id}: {response}")
             # Mark as ready after first message is processed
             self._ready.set()
 
     def queue_message(self, payload):
         self.message_queue.append(payload)
-
-    async def _process_queued_messages(self):
-        if self._processing:
-            return
-
-        self._processing = True
-        try:
-            while self.message_queue:
-                message = self.message_queue.popleft()
-                await self.send_response(message)
-        finally:
-            self._processing = False
-
-        logger.info("All queued messages processed")
-        # Set ready when all messages are processed
-        self._ready.set()
-
+            
     def send_response_sync(self, payload):
-        if self._ws_client and not self._processing:
+        if self._ws_client:
             self._processing = True
             try:
                 asyncio.run(self.send_response(payload))
