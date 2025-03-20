@@ -4,6 +4,8 @@ import subprocess
 import sys
 import threading
 import time
+import signal
+import atexit
 from typing import Optional
 from aiflow.network.ws_client import client as ws_client
 from aiflow.logger import setup_logger
@@ -188,49 +190,62 @@ class Launcher:
         return 'unknown'
 
     def _setup_signal_handlers(self):
-        import signal
-        signal.signal(signal.SIGINT, self._signal_handler)
-        signal.signal(signal.SIGTERM, self._signal_handler)
-
-    def _signal_handler(self, signum, frame):
-        logger.info(f"Received signal {signum}")
-        self.cleanup()
-        sys.exit(0)
-
-    # Cleanup and context management
-    def cleanup(self):
-        logger.info("Starting cleanup...")
-        self.running = False
-
-        if self._loop:
-            asyncio.run_coroutine_threadsafe(
-                ws_client.close(), 
-                self._loop
-            ).result(timeout=5)
-            self._loop.stop()
-
-        for name, process in self.processes.items():
-            try:
-                logger.info(f"Terminating {name}...")
-                process.terminate()
-                process.wait(timeout=5)
-            except Exception as e:
-                logger.error(f"Error cleaning up {name}: {str(e)}")
+        # Use a simpler approach - just exit immediately on signals
+        def exit_now(signum, frame):
+            logger.info(f"Received signal {signum}, exiting immediately")
+            os._exit(1)
             
-        logger.info("Cleanup completed")
+        signal.signal(signal.SIGINT, exit_now)
+        signal.signal(signal.SIGTERM, exit_now)
+
+    # Cleanup and context management - these methods don't matter 
+    # since we'll exit directly from the signal handler
+    def cleanup(self):
+        logger.info("EMERGENCY EXIT")
+        os._exit(1)
+
+    def force_exit(self):
+        logger.info("FORCE EXIT")
+        os._exit(1)
 
     def keep_alive(self):
+        # Use an alternative approach to handle KeyboardInterrupt
         try:
+            logger.info("Starting keep_alive loop with direct CTRL+C handler")
+            # Set all threads as daemon so they won't prevent exit
+            for thread in threading.enumerate():
+                if thread != threading.current_thread():
+                    thread.daemon = True
+                    
+            # Handle Ctrl+C in a more direct way
             while self.running:
-                time.sleep(1)
+                try:
+                    time.sleep(0.5)
+                except KeyboardInterrupt:
+                    logger.info("KeyboardInterrupt (CTRL+C) detected in inner loop")
+                    # Exit immediately without any cleanup
+                    logger.info("Exiting now...")
+                    os._exit(1)
+                    
         except KeyboardInterrupt:
-            self.cleanup()
+            # Fallback in case the inner handler doesn't catch it
+            logger.info("KeyboardInterrupt (CTRL+C) detected in outer loop")
+            logger.info("Exiting now...")
+            os._exit(1)
+        except Exception as e:
+            logger.error(f"Error in keep_alive: {e}")
+            os._exit(1)
+        
+        logger.info("keep_alive loop ended normally, exiting")
+        os._exit(1)
 
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.cleanup()
+        # Just exit immediately
+        import os
+        os._exit(1)
 
     def __del__(self):
-        self.cleanup()
+        pass
