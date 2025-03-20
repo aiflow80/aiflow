@@ -28,7 +28,7 @@ class EventBase:
     def set_caller_file(self, caller_file):
         self.caller_file = caller_file
         
-    async def pair(self, message):
+    async def handle_message(self, message):
         self.last_message = message.get('payload')
         self.sender_id = message.get('sender_id')
         self.session_id = message.get('client_id')
