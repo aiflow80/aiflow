@@ -1,4 +1,4 @@
-from .logger import root_logger as logger
+from aiflow.logger import root_logger as logger
 
 logger.info("Initializing aiflow...")
 from aiflow.launcher import Launcher
