@@ -32,7 +32,7 @@ class EventBase:
         self.client_id = message.get('client_id')
         
         if self.sender_id:
-            await self._process_queued_messages()
+            # await self._process_queued_messages()
             
             response = {
                 "type": "message",

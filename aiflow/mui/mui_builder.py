@@ -360,6 +360,7 @@ class MUIBuilder:
                             "timestamp": time.time()
                         }
                     })
+                    print(f"wrapped comp {comp['id'], comp['parentId']} send to sequence.")
                     break
         
         # Replace the add_child method with our wrapped version
