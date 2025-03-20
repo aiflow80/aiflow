@@ -133,27 +133,3 @@ class WebSocketClient:
 
 client = WebSocketClient()
 event_base.set_ws_client(client)
-
-async def main():
-    print("Starting WebSocket client...")
-    
-    async def handle_chat(message):
-        print(f"Received chat message: {message}")
-    
-    try:
-        client.register_handler('chat', handle_chat)
-        
-        print("Attempting to connect...")
-        await client.connect()
-        print(f"Successfully connected with client ID: {client.client_id}")
-        
-        await asyncio.sleep(60)
-    except Exception as e:
-        print(f"Failed to connect: {e}")
-    finally:
-        print("Closing connection...")
-        await client.close()
-
-if __name__ == "__main__":
-    import time
-    asyncio.run(main())
