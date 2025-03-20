@@ -48,7 +48,7 @@ class WebSocketClient:
         try:
             if isinstance(message, str):
                 message = json.loads(message)
-            await event_base.pair(message)
+            await event_base.handle_message(message)
         except Exception as e:
             logger.error(f"Error processing message: {e}")
 

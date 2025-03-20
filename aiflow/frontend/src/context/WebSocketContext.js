@@ -46,8 +46,6 @@ export const WebSocketProvider = ({ children }) => {
               setClientId(data.client_id);  // Store our client_id
               
               // Send pairing message after receiving our client_id
-              const urlParams = new URLSearchParams(window.location.search);
-              const sessionId = urlParams.get('session_id');
               if (sessionId) {
                 socket.send(JSON.stringify({
                   type: 'pair',
