@@ -24,7 +24,7 @@ class EventBase:
     def set_ws_client(self, client):
         self._ws_client = client
 
-    async def store_message(self, message):
+    async def pair(self, message):
         self.last_message = message.get('payload')
         self.sender_id = message.get('sender_id')
         self.client_id = message.get('client_id')

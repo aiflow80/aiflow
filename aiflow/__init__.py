@@ -3,10 +3,10 @@ from .logger import root_logger as logger
 logger.info("Initializing aiflow...")
 from aiflow.launcher import Launcher
 from aiflow.mui import mui
-from aiflow.events.event_base import event_base
 
 launcher = Launcher()  
-module = launcher.caller_file
+
+from aiflow.events.event_base import event_base
 
 def init(wait_timeout=30):
     ready = event_base.wait_until_ready(timeout=wait_timeout)
@@ -24,4 +24,4 @@ if init():
 else:
     logger.error("aiflow initialization failed, starting event base")
 
-__all__ = ['mui', 'logger', 'module']
+__all__ = ['mui', 'logger', 'launcher']
