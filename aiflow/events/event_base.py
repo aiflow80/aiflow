@@ -62,7 +62,7 @@ class EventBase:
         def _run():
             try:
                 from aiflow.events.run import run_module
-                run_module(module_path, method='importlib')
+                run_module(module_path, method='runpy')
             except Exception as e:
                 logger.error(f"Error running module {module_path}: {e}")
                 
@@ -90,7 +90,6 @@ class EventBase:
     async def send_response_async(self, payload):
         """Send a response asynchronously, for use from async code"""
         try:
-            logger.info(f"Sending response asynchronously")
             await self._ws_client.send(payload)
         except Exception as e:
             logger.error(f"Failed to send response asynchronously: {e}")

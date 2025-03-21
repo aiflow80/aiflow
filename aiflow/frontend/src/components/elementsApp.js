@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback, useMemo } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { dequal } from "dequal/lite";
 import { jsx } from "@emotion/react";
@@ -217,7 +217,7 @@ const ElementsApp = ({ args, theme }) => {
 
   const { socketService } = useWebSocket(); // Now called at top level
 
-  const handleFormEvent = (eventData) => {
+  const handleFormEvent = useCallback((eventData) => {
     setFormEvents(prev => ({
       ...prev,
       [eventData.key]: {
@@ -225,9 +225,9 @@ const ElementsApp = ({ args, theme }) => {
         value: eventData.value
       }
     }));
-  };
+  }, []);
 
-  const handleEvent = async (event, key, eventType, props = {}) => {
+  const handleEvent = useCallback(async (event, key, eventType, props = {}) => {
     try {
       let value;
       
@@ -266,9 +266,9 @@ const ElementsApp = ({ args, theme }) => {
       console.error('Event handling error:', error);
       await send(createEventPayload(key, 'error', error.message));
     }
-  };
+  }, [formEvents]);
 
-  const createEventHandlers = (id, type, props) => {
+  const createEventHandlers = useCallback((id, type, props) => {
     const handlers = {};
 
     if (!id) return handlers;
@@ -340,10 +340,10 @@ const ElementsApp = ({ args, theme }) => {
     }
 
     return handlers;
-  };
+  }, [handleEvent, handleFormEvent]);
 
-  // Move renderElement after createEventHandlers to fix the reference error
-  const renderElement = (node) => {
+  // Memoize the renderElement function to prevent recreating it on every render
+  const renderElement = useCallback((node) => {
     const { module, type, props = {}, children = [], content } = node;
 
     // Handle text nodes - either from module="text" or type="text"
@@ -360,21 +360,6 @@ const ElementsApp = ({ args, theme }) => {
     
     // Preserve all original props without modification
     const finalProps = { ...convertNode(props, renderElement) };
-
-    // Special handling for FormControlLabel with string control prop
-    // if (type === 'FormControlLabel' && typeof finalProps.control === 'string') {
-    //   // Convert string control to React element
-    //   const ControlComponent = loaders.muiElements(finalProps.control);
-    //   finalProps.control = React.createElement(ControlComponent, {});
-    // }
-    
-    // Add fallback for FormControlLabel with missing control prop
-    // if (type === 'FormControlLabel' && finalProps.control === undefined) {
-    //   // When control is missing (e.g., from WebSocket updates), default to Radio
-    //   const RadioComponent = loaders.muiElements('Radio');
-    //   finalProps.control = React.createElement(RadioComponent, {});
-    //   console.debug('Added fallback Radio control to FormControlLabel:', finalProps.id);
-    // }
 
     // Special handling for file inputs only (this part is necessary)
     if (type === 'Input' && finalProps.type === 'file') {
@@ -402,7 +387,7 @@ const ElementsApp = ({ args, theme }) => {
     }
 
     return jsx(LoadedElement, finalProps, ...renderedChildren);
-  };
+  }, [createEventHandlers]);
 
   useEffect(() => {
     // Use optional chaining to avoid reading 'data' of undefined
@@ -438,10 +423,6 @@ const ElementsApp = ({ args, theme }) => {
   }, [args?.data]);
 
   useEffect(() => {
-    console.debug('Current componentsMap:', componentsMap); // Avoid unused var warning
-  }, [componentsMap]);
-
-  useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
       console.debug('Received component_update payload:', payload);
       if (!payload?.component) return;
@@ -456,7 +437,7 @@ const ElementsApp = ({ args, theme }) => {
     return unsub;
   }, [socketService]);
 
-  function buildUiTree(map) {
+  const buildUiTree = useCallback((map) => {
     console.debug('Building UI tree from componentsMap:', map);
     const lookup = {};
 
@@ -474,7 +455,16 @@ const ElementsApp = ({ args, theme }) => {
 
     // Return top-level components (those without parent)
     return Object.values(lookup).filter((c) => !c.parentId);
-  }
+  }, []);
+
+  // Memoize the rendered UI tree to prevent unnecessary rendering
+  const renderedElements = useMemo(() => {
+    return uiTree.map((node, index) => (
+      <React.Fragment key={node.id || index}>
+        {renderElement(node)}
+      </React.Fragment>
+    ));
+  }, [uiTree, renderElement]);
 
   return (
     <ElementsTheme theme={theme}>
@@ -499,15 +489,26 @@ const ElementsApp = ({ args, theme }) => {
           } 
           onError={(error) => send({ error: error.message })}
         >
-          {uiTree.map((node, index) => (
-            <React.Fragment key={index}>
-              {renderElement(node)}
-            </React.Fragment>
-          ))}
+          {renderedElements}
         </ErrorBoundary>
       </Box>
     </ElementsTheme>
   );
 };
 
-export default React.memo(ElementsApp, dequal);
+// Add a custom equality function that can check complex objects more efficiently
+const arePropsEqual = (prevProps, nextProps) => {
+  // Check if the data has actually changed to avoid unnecessary renders
+  if (prevProps.args?.data !== nextProps.args?.data) {
+    return false;
+  }
+  
+  // Check if theme has changed
+  if (!dequal(prevProps.theme, nextProps.theme)) {
+    return false;
+  }
+  
+  return true;
+};
+
+export default React.memo(ElementsApp, arePropsEqual);

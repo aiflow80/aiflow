@@ -390,7 +390,6 @@ class MUIBuilder:
                     "timestamp": time.time()
                 }
             })
-            logger.debug(f"Component {component_dict['id']} with parent {component_dict.get('parentId')} sent to sequence")
 
         return component
     
