@@ -68,12 +68,10 @@ class EventBase:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
                     # Create a future and run the coroutine in the background
-                    logger.info("Running in an existing event loop")
                     # Use asyncio.create_task to schedule the coroutine
                     asyncio.create_task(self.send_response(payload))
                 else:
                     # If no loop is running, we can use asyncio.run
-                    logger.info("Running in a new event loop")  
                     asyncio.run(self.send_response(payload))
             except RuntimeError:
                 # Fallback for when we can't get a loop or it's closed
