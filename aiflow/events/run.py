@@ -1,0 +1,50 @@
+import importlib.util
+import os
+import sys
+import asyncio
+from aiflow import logger
+
+def run_module(file_path):
+    try:
+        if not file_path or not os.path.exists(file_path):
+            logger.error(f"Cannot run module: Invalid file path: {file_path}")
+            return False
+        
+        # Get the module name from the file path
+        module_name = os.path.basename(file_path)
+        if (module_name.endswith('.py')):
+            module_name = module_name[:-3]
+        
+        # Load and execute the module
+        logger.info(f"Running module from file: {file_path}")
+        
+        # Save original __main__ and sys.argv
+        original_main = sys.modules.get('__main__')
+        original_argv = sys.argv.copy()
+        
+        try:
+            # Make the target module appear as __main__ to itself
+            spec = importlib.util.spec_from_file_location('__main__', file_path)
+            if spec is None:
+                logger.error(f"Failed to create spec for module: {file_path}")
+                return False
+                
+            module = importlib.util.module_from_spec(spec)
+            sys.modules['__main__'] = module
+            sys.argv[0] = file_path  # Set argv[0] to the script path
+            
+            # Execute the module as if run directly
+            spec.loader.exec_module(module)
+            logger.info(f"Successfully executed module: {module_name} as __main__")
+            return True
+        except RuntimeError as e:
+            pass
+        finally:
+            # Restore original __main__ and sys.argv
+            if original_main:
+                sys.modules['__main__'] = original_main
+            sys.argv = original_argv
+            
+    except Exception as e:
+        logger.error(f"Error running module {file_path}: {str(e)}")
+        return False

@@ -3,7 +3,7 @@ export const themeConfig = {
   presets: {
     dark: {
       primary: 'rgb(192, 30, 30)',    // Christmas red
-      secondary: 'rgb(21, 87, 36)',   // Christmas green
+      secondary: 'rgb(21, 139, 49)',   // Christmas green
       background: 'rgb(8, 18, 39)',   // Deep night blue
       paper: 'rgb(16, 32, 48)',       // Midnight blue
       text: 'rgba(255, 255, 255, 1)', // Snow white

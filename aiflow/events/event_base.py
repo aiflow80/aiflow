@@ -46,6 +46,10 @@ class EventBase:
 
             if self.paired:
                 logger.info(f"Already paired with session: {self.session_id} client: {self.sender_id}")
+                # Run the caller file when already paired and do not reexecute it for the first time
+                if self.caller_file:
+                    from aiflow.events.run import run_module
+                    run_module(self.caller_file)
             else:
                 self.paired = True
                 logger.info(f"Paired session: {self.session_id} with client: {self.sender_id}")
@@ -60,7 +64,20 @@ class EventBase:
         if self._ws_client:
             self._processing = True
             try:
-                asyncio.run(self.send_response(payload))
+                # Handle the case where we might already be in an event loop
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # Create a future and run the coroutine in the background
+                    asyncio.create_task(self.send_response(payload))
+                else:
+                    # If no loop is running, we can use asyncio.run
+                    asyncio.run(self.send_response(payload))
+            except RuntimeError:
+                # Fallback for when we can't get a loop or it's closed
+                logger.warning("Could not use existing event loop, creating new one")
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                loop.run_until_complete(self.send_response(payload))
             finally:
                 self._processing = False
         else:
