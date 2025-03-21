@@ -41,54 +41,65 @@ class EventBase:
                 "sender_id": self.session_id,
                 "payload": f"Received your message: {self.last_message}"
             }
-            await self.send_response(response)
+            # Use the async version since we're in an async context
+            await self.send_response_async(response)
 
             if self.paired:
                 logger.info(f"Refresh session: {self.session_id} client: {self.sender_id}")
                 # Run the caller file when already paired and do not reexecute it for the first time
                 if self.caller_file:
-                    from aiflow.events.run import run_module
-                    # Use threaded=True to ensure timing operations work correctly
-                    run_module(self.caller_file, method='importlib')
+                    # Run in a separate thread to avoid event loop conflicts
+                    self._run_module_in_thread(self.caller_file)
             else:
                 self.paired = True
                 logger.info(f"Paired session: {self.session_id} with client: {self.sender_id}")
                 
             # Mark as ready after first message is processed
             self._ready.set()
+            
+    def _run_module_in_thread(self, module_path):
+        """Run the module in a separate thread to avoid event loop conflicts"""
+        def _run():
+            try:
+                from aiflow.events.run import run_module
+                run_module(module_path, method='importlib')
+            except Exception as e:
+                logger.error(f"Error running module {module_path}: {e}")
+                
+        # Start a new thread to run the module
+        thread = threading.Thread(target=_run, name="ModuleRunner", daemon=True)
+        thread.start()
 
     def queue_message(self, payload):
         self.message_queue.append(payload)
             
     def send_response_sync(self, payload):
+        """Send a response synchronously, for use from synchronous code"""
         if self._ws_client:
             self._processing = True
             try:
-                # Handle the case where we might already be in an event loop
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    # Create a future and run the coroutine in the background
-                    # Use asyncio.create_task to schedule the coroutine
-                    asyncio.create_task(self.send_response(payload))
-                else:
-                    # If no loop is running, we can use asyncio.run
-                    asyncio.run(self.send_response(payload))
-            except RuntimeError:
-                # Fallback for when we can't get a loop or it's closed
-                loop = asyncio.new_event_loop()
-                asyncio.set_event_loop(loop)
-                loop.run_until_complete(self.send_response(payload))
+                self._ws_client.send_sync(payload)
+            except Exception as e:
+                logger.error(f"Failed to send response synchronously: {e}")
+                self.queue_message(payload)
             finally:
                 self._processing = False
         else:
             self.queue_message(payload)
 
-    async def send_response(self, payload):
+    async def send_response_async(self, payload):
+        """Send a response asynchronously, for use from async code"""
         try:
+            logger.info(f"Sending response asynchronously")
             await self._ws_client.send(payload)
         except Exception as e:
-            logger.error(f"Failed to send response: {e}")
+            logger.error(f"Failed to send response asynchronously: {e}")
             self.queue_message(payload)
+    
+    # Main send method - choose sync by default
+    def send_response(self, payload):
+        """Default send method - synchronous by default"""
+        self.send_response_sync(payload)
 
     def get_message_info(self):
         return {

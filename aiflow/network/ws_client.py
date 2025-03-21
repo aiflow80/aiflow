@@ -115,6 +115,30 @@ class WebSocketClient:
             logger.error(f"Failed to send message: {str(e)}")
             raise
 
+    def send_sync(self, payload: dict, targets: list = None):
+        """Synchronous version of send that can be called from any thread"""
+        try:
+            # Check if we're already in an event loop
+            try:
+                loop = asyncio.get_event_loop()
+                if loop.is_running():
+                    # We're in an event loop, create a new future and run it properly
+                    future = asyncio.run_coroutine_threadsafe(self.send(payload, targets), loop)
+                    return future.result()
+                else:
+                    # Loop exists but isn't running
+                    return loop.run_until_complete(self.send(payload, targets))
+            except RuntimeError:
+                # No event loop in this thread, create a new one
+                loop = asyncio.new_event_loop()
+                try:
+                    return loop.run_until_complete(self.send(payload, targets))
+                finally:
+                    loop.close()
+        except Exception as e:
+            logger.error(f"Failed to send message synchronously: {str(e)}")
+            raise
+            
     async def close(self):
         self._running = False
         self._connected.clear()
