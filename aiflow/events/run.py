@@ -3,12 +3,18 @@ import os
 import sys
 import asyncio
 from aiflow import logger
+from aiflow.events import event_base
 
 def run_module(file_path):
     try:
         if not file_path or not os.path.exists(file_path):
             logger.error(f"Cannot run module: Invalid file path: {file_path}")
             return False
+        else:
+            logger.info(f"Running module from full file path: {os.path.abspath(file_path)}")
+            # Set the caller file path if event_base exists and caller file is unknown
+            if not event_base.caller_file:
+                event_base.set_caller_file(os.path.abspath(file_path))
         
         # Get the module name from the file path
         module_name = os.path.basename(file_path)

@@ -205,4 +205,4 @@ class Launcher:
                     return main_file
         except Exception:
             pass
-        return 'unknown'
+        return None
