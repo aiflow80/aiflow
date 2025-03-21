@@ -6,14 +6,14 @@ import ElementsTheme, { getInitialThemeColors } from './components/elementsTheme
 import { themeConfig } from './config/theme.config';
 
 function App() {
+    // Create theme once and memoize it
     const defaultTheme = useMemo(() => {
         const initialColors = getInitialThemeColors();
-        console.log('App - Using base mode:', themeConfig.defaultMode);
         return {
             base: themeConfig.defaultMode,
             backgroundColor: initialColors.background,
             secondaryBackgroundColor: initialColors.paper,
-            primaryColor: initialColors.primary,    // Use primary from theme presets
+            primaryColor: initialColors.primary,
             textColor: initialColors.text,
             fadedText60: initialColors.textSecondary
         };

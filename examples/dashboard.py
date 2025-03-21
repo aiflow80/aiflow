@@ -64,7 +64,7 @@ def earningcard():
                                 variant="rounded",
                                 sx={
                                     "backgroundColor": "primary.main",
-                                    "color": "primary.200",
+                                    "color": "primary.800",
                                     "zIndex": 1,
                                     "width": 40,
                                     "height": 40,
@@ -149,7 +149,7 @@ def totalorderlinechartcard():
                     with mui.Grid(container=True, justifyContent="space-between"):
                         # Avatar section
                         with mui.Grid(item=True):
-                            with mui.Avatar(
+                            mui.Avatar(
                                 variant="rounded",
                                 sx={
                                     "backgroundColor": "primary.main",
@@ -158,72 +158,70 @@ def totalorderlinechartcard():
                                     "width": 56,
                                     "height": 56,
                                 }
-                            ):
-                                mui.icon.LocalMallOutlined()
+                            )(mui.icon.LocalMallOutlined())
                         
-                        # # Time toggle buttons - removed onClick handlers
-                        # with mui.Grid(item=True):
-                        #     mui.Button(
-                        #         "Month",
-                        #         variant="contained",
-                        #         size="small",
-                        #         sx={"color": "inherit"}
-                        #     )
-                        #     mui.Button(
-                        #         "Year",
-                        #         variant="contained",
-                        #         size="small",
-                        #         sx={"color": "inherit"}
-                        #     )
+                        # Time toggle buttons - removed onClick handlers
+                        with mui.Grid(item=True):
+                            mui.Button(
+                                "Month",
+                                variant="contained",
+                                size="small",
+                                sx={"color": "inherit"}
+                            )
+                            mui.Button(
+                                "Year",
+                                variant="contained",
+                                size="small",
+                                sx={"color": "inherit"}
+                            )
 
-                # # Second row with value and chart
-                # with mui.Grid(item=True):
-                #     with mui.Grid(container=True, alignItems="center", spacing=1):  # Changed from {xs: 1} to 1
-                #         # Left side - value and icon
-                #         with mui.Grid(item=True, xs=6):
-                #             with mui.Grid(container=True, alignItems="center"):
-                #                 with mui.Grid(item=True):
-                #                     mui.Typography(
-                #                         "$108",
-                #                         sx={
-                #                             "fontSize": "2.125rem",
-                #                             "fontWeight": 500,
-                #                             "mr": 1,
-                #                             "mt": 1.25,  
-                #                             "mb": 0.75,
-                #                         }
-                #                     )
-                #                 with mui.Grid(item=True):
-                #                     with mui.Avatar(
-                #                         sx={
-                #                             "cursor": "pointer",
-                #                             "backgroundColor": "primary.200",
-                #                             "width": 30,
-                #                             "height": 30,
-                #                         }
-                #                     ):
-                #                         mui.icon.ArrowDownward(
-                #                             sx={"transform": "rotate3d(1, 1, 1, 45deg)"}
-                #                         )
-                #                 with mui.Grid(item=True, xs=12):
-                #                     mui.Typography(
-                #                         "Total Order",
-                #                         sx={
-                #                             "fontSize": "1rem",
-                #                             "fontWeight": 500,
-                #                         },
-                #                     )
+                # Second row with value and chart
+                with mui.Grid(item=True):
+                    with mui.Grid(container=True, alignItems="center", spacing=1):  # Changed from {xs: 1} to 1
+                        # Left side - value and icon
+                        with mui.Grid(item=True, xs=6):
+                            with mui.Grid(container=True, alignItems="center"):
+                                with mui.Grid(item=True):
+                                    mui.Typography(
+                                        "$108",
+                                        sx={
+                                            "fontSize": "2.125rem",
+                                            "fontWeight": 500,
+                                            "mr": 1,
+                                            "mt": 1.25,  
+                                            "mb": 0.75,
+                                        }
+                                    )
+                                with mui.Grid(item=True):
+                                    mui.Avatar(
+                                        sx={
+                                            "cursor": "pointer",
+                                            "backgroundColor": "primary.200",
+                                            "width": 30,
+                                            "height": 30,
+                                        }
+                                    )(mui.icon.ArrowDownward(
+                                            sx={"transform": "rotate3d(1, 1, 1, 45deg)"}
+                                        ))
+                                with mui.Grid(item=True, xs=12):
+                                    mui.Typography(
+                                        "Total Order",
+                                        sx={
+                                            "fontSize": "1rem",
+                                            "fontWeight": 500,
+                                        },
+                                    )
                         
-                #         # Right side - chart
-                #         with mui.Grid(item=True, xs=6):
-                #             mui.Box(
-                #                 sx={
-                #                     "height": 55,  # Further reduce height
-                #                     "backgroundColor": "primary.800",
-                #                     "borderRadius": 1,
-                #                     "opacity": 0.5,
-                #                 }
-                #             )
+                        # Right side - chart
+                        with mui.Grid(item=True, xs=6):
+                            mui.Box(
+                                sx={
+                                    "height": 55,  # Further reduce height
+                                    "backgroundColor": "primary.800",
+                                    "borderRadius": 1,
+                                    "opacity": 0.5,
+                                }
+                            )
 
 def totalincomedarkcard():
     with mui.Card(
@@ -254,19 +252,19 @@ def totalincomedarkcard():
             }
         }
     ):
-        with mui.Box(sx={"p": 2}):
+        with mui.Box(sx={"p": 1.6}):
             with mui.List(sx={"py": 0}):
                 with mui.ListItem(alignItems="center", disableGutters=True, sx={"py": 0}):
                     with mui.ListItemAvatar():
-                        with mui.Avatar(
+                        mui.Avatar(
                             variant="rounded",
                             sx={
                                 "backgroundColor": "primary.main",
                                 "color": "#fff",
                                 # Add typography common avatar styles if needed
                             }
-                        ):
-                            mui.icon.TableChartOutlined(fontSize="inherit")
+                        )(mui.icon.TableChartOutlined(fontSize="inherit"))
+
                     with mui.ListItemText(
                         sx={
                             "py": 0,
@@ -314,7 +312,7 @@ def totalincomelightcard():
         }
     ):
         # ...existing content remains the same...
-        with mui.Box(sx={"p": 1.25}):
+        with mui.Box(sx={"p": 1.6}):
             with mui.List(sx={"py": 0}):
                 with mui.ListItem(alignItems="center", disableGutters=True, sx={"py": 0}):
                     with mui.ListItemAvatar():
@@ -596,12 +594,12 @@ def dashboard():
                         earningcard()
                     with mui.Grid(item=True, lg=4, md=6, sm=6, xs=12):
                         totalorderlinechartcard()
-            #         with mui.Grid(item=True, lg=4, md=12, sm=12, xs=12):
-            #             with mui.Grid(container=True, spacing=2):
-            #                 with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
-            #                     totalincomedarkcard()
-            #                 with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
-            #                     totalincomelightcard()
+                    with mui.Grid(item=True, lg=4, md=12, sm=12, xs=12):
+                        with mui.Grid(container=True, spacing=2):
+                            with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
+                                totalincomedarkcard()
+                            with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
+                                totalincomelightcard()
             # # Second row
             # with mui.Grid(item=True, xs=12):
             #     with mui.Grid(container=True, spacing=2):

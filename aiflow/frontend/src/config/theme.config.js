@@ -3,8 +3,8 @@ export const themeConfig = {
   presets: {
     dark: {
       primary: 'rgb(243, 24, 24)',
-      background: 'rgba(15, 23, 42, 1)',
-      paper: 'rgba(2, 6, 23, 1)',
+      background: 'rgb(0, 0, 0)',
+      paper: 'rgb(8, 18, 39)',
       text: 'rgba(255, 255, 255, 1)',
       textSecondary: 'rgba(235, 231, 231, 0.7)'
     },
