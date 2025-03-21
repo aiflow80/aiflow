@@ -51,10 +51,6 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
             sx={"marginBottom": "10px"}
         )
 
-    # Gender selection using Radio buttons
-    mui.Divider(id="gender-divider", sx={"marginY": "20px"})
-    mui.Typography("Gender:", variant="subtitle1", sx={"marginBottom": "10px"})
-
     # Experience level using Slider
     mui.Typography("Years of Experience:", variant="subtitle1")
     mui.Slider(
@@ -68,6 +64,10 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
         sx={"marginBottom": "20px"}
     )
 
-    # Notification preferences using Checkboxes
-    mui.Divider(sx={"marginY": "20px"})
-    mui.Typography("Notification Preferences:", variant="subtitle1", sx={"marginBottom": "10px"})
+    mui.Divider(id="gender-divider", sx={"marginY": "20px"})
+    mui.Typography("Gender:", variant="subtitle1", sx={"marginBottom": "10px"})
+
+    with mui.RadioGroup(defaultValue="female", id="gender", sx={"marginBottom": "15px"}):
+        mui.FormControlLabel(value="female", control="Radio", label="Female")
+        mui.FormControlLabel(value="male", control="Radio", label="Male")
+        mui.FormControlLabel(value="other", control="Radio", label="Other")

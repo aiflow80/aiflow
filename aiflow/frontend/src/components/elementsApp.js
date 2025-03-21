@@ -361,6 +361,13 @@ const ElementsApp = ({ args, theme }) => {
     // Preserve all original props without modification
     const finalProps = { ...convertNode(props, renderElement) };
 
+    // Special handling for FormControlLabel with string control prop
+    if (type === 'FormControlLabel' && typeof finalProps.control === 'string') {
+      // Convert string control to React element
+      const ControlComponent = loaders.muiElements(finalProps.control);
+      finalProps.control = React.createElement(ControlComponent, {});
+    }
+
     // Special handling for file inputs only (this part is necessary)
     if (type === 'Input' && finalProps.type === 'file') {
       finalProps.key = `file-input-${Date.now()}`;
