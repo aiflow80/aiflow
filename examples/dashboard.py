@@ -259,7 +259,7 @@ def totalincomedarkcard():
                         mui.Avatar(
                             variant="rounded",
                             sx={
-                                "backgroundColor": "primary.main",
+                                "backgroundColor": "secondary.dark",
                                 "color": "#fff",
                                 # Add typography common avatar styles if needed
                             }
@@ -316,14 +316,13 @@ def totalincomelightcard():
             with mui.List(sx={"py": 0}):
                 with mui.ListItem(alignItems="center", disableGutters=True, sx={"py": 0}):
                     with mui.ListItemAvatar():
-                        with mui.Avatar(
+                        mui.Avatar(
                             variant="rounded",
                             sx={
                                 "backgroundColor": "warning.light",
                                 "color": "warning.dark"
                             }
-                        ):
-                            mui.icon.StorefrontTwoTone()
+                        )(mui.icon.StorefrontTwoTone())
                     with mui.ListItemText(
                         sx={
                             "py": 0,
