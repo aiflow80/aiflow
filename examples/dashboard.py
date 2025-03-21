@@ -87,7 +87,7 @@ def earningcard():
                         )
                         mui.Avatar(
                             sx={
-                                "backgroundColor": "secondary.main",
+                                "backgroundColor": "primary.main",
                                 "width": 30,
                                 "height": 30,
                             },

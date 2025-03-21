@@ -95,7 +95,7 @@ const getContrastText = (background) => {
   const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
   
   // Return white for dark backgrounds, black for light backgrounds
-  return luminance > 0.5 ? 'rgba(0, 0, 0, 0.87)' : '#fff';
+  return luminance > 0.5 ? getThemeColors('light').text : getThemeColors('dark').text;
 };
 
 // Parse color references like "primary.800"
@@ -126,10 +126,10 @@ const createThemeWithColors = (mode, customColors = {}) => {
   const colors = {
     primary: customColors.primaryColor || defaultColors.primary,
     secondary: customColors.secondaryColor || defaultColors.secondary || defaultColors.textSecondary,
-    error: customColors.errorColor || '#f44336',
-    warning: customColors.warningColor || '#ff9800',
-    info: customColors.infoColor || '#2196f3',
-    success: customColors.successColor || '#4caf50',
+    error: customColors.errorColor || defaultColors.error,
+    warning: customColors.warningColor || defaultColors.warning,
+    info: customColors.infoColor || defaultColors.info,
+    success: customColors.successColor || defaultColors.success,
     background: customColors.backgroundColor || defaultColors.background,
     paper: customColors.secondaryBackgroundColor || defaultColors.paper,
     text: customColors.textColor || defaultColors.text,
@@ -205,17 +205,12 @@ const createThemeWithColors = (mode, customColors = {}) => {
           primary: primaryVariants, 
           secondary: secondaryVariants 
         }),
-        disabled: 'rgba(0, 0, 0, 0.38)',
+        disabled: mode === 'light' ? 
+          'rgba(0, 0, 0, 0.38)' : 
+          'rgba(255, 255, 255, 0.38)',
       },
-      divider: 'rgba(0, 0, 0, 0.12)',
-      action: {
-        active: mode === 'light' ? 'rgba(0, 0, 0, 0.54)' : 'rgba(255, 255, 255, 0.7)',
-        hover: mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.08)',
-        selected: mode === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.16)',
-        disabled: mode === 'light' ? 'rgba(0, 0, 0, 0.26)' : 'rgba(255, 255, 255, 0.3)',
-        disabledBackground: mode === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)',
-        focus: mode === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)',
-      }
+      divider: defaultColors.divider,
+      action: defaultColors.action
     },
     // Add MUI's other theme sections
     typography: {
