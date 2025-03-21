@@ -107,14 +107,9 @@ class MUIBuilder:
         if "children" not in component_dict:
             component_dict["children"] = []
         
-        # Identify special component props
-        special_component_props = {}
-        component_type = component_dict.get("type")
-        if component_type in MUIComponent._special_component_props:
-            special_prop_keys = MUIComponent._special_component_props[component_type]
-        else:
-            special_prop_keys = []
-            
+        # Instead of hardcoded special props, we'll handle props dynamically
+        # by checking if components have the _prop_key attribute
+        
         # Store the prop keys that contain MUI components - we'll track these to avoid duplication
         mui_component_props = {}
             
@@ -126,9 +121,9 @@ class MUIBuilder:
                 # Store component ID by prop key to track it
                 mui_component_props[key] = prop_dict["id"]
                 
-                # Special handling for components with special props
-                # If this is a special prop, include it in props instead of children
-                is_special_prop = key in special_prop_keys
+                # Special handling based on component's _is_prop_component flag
+                # If this is marked as a prop component, it shouldn't be in children
+                is_special_prop = hasattr(value, '_is_prop_component') and value._is_prop_component
                 
                 # Only add to children if it's not a special prop
                 if not is_special_prop and not self._component_exists_in_array(prop_dict, component_dict["children"]):
@@ -174,18 +169,11 @@ class MUIBuilder:
                             if not self._component_exists_in_array(child, prop_dict["children"]):
                                 prop_dict["children"].append(child)
 
-        # For special component props, ensure they're in the props instead of children
-        if special_prop_keys:
-            for key in special_prop_keys:
-                if key in props and isinstance(props[key], MUIComponent):
-                    component_dict["props"][key] = props[key].to_dict()
-        
-        # Remove MUI component objects from props that are not special
-        # We'll keep only primitive values, non-MUI objects, and special props
+        # For components marked as prop components, ensure they're in the props instead of children
         filtered_props = {}
         for key, value in props.items():
-            if not isinstance(value, MUIComponent) or key in special_prop_keys:
-                if isinstance(value, MUIComponent) and key in special_prop_keys:
+            if not isinstance(value, MUIComponent) or (hasattr(value, '_is_prop_component') and value._is_prop_component):
+                if isinstance(value, MUIComponent) and hasattr(value, '_is_prop_component') and value._is_prop_component:
                     # For special props, use the processed component dict
                     filtered_props[key] = value.to_dict()
                 else:

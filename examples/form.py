@@ -71,3 +71,45 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
         mui.FormControlLabel(value="female", control=mui.Radio(), label="Female")
         mui.FormControlLabel(value="male", control=mui.Radio(), label="Male")
         mui.FormControlLabel(value="other", control=mui.Radio(), label="Other")
+
+        # Notification preferences using Checkboxes
+        mui.Divider(sx={"marginY": "20px"})
+        mui.Typography("Notification Preferences:", variant="subtitle1", sx={"marginBottom": "10px"})
+        mui.FormControlLabel(id="notify-email", control=mui.Checkbox(defaultChecked=True), label="Email notifications")
+        mui.FormControlLabel(id="notify-sms", control=mui.Checkbox(), label="SMS notifications")
+        mui.FormControlLabel(id="notify-push", control=mui.Checkbox(), label="Push notifications")
+
+        # Satisfaction rating
+        mui.Divider(sx={"marginY": "20px"})
+        mui.Typography("Rate your experience:", variant="subtitle1")
+        mui.Rating(id="satisfaction-rating", defaultValue=3, precision=0.5, sx={"marginBottom": "20px"})
+
+        # Terms and conditions toggle
+        mui.Divider(sx={"marginY": "20px"})
+        mui.FormControlLabel(
+            id="terms-switch",
+            control=mui.Switch(required=True),
+            label="I accept the terms and conditions",
+            sx={"marginBottom": "20px"}
+        )
+
+        # Select Box
+        mui.Typography("Select Department:", variant="subtitle1", sx={"marginTop": "20px", "marginBottom": "10px"})
+        with mui.Select(id="department-select", variant="outlined", fullWidth=True, sx={"marginBottom": "10px"}) as department_select:
+            for index, department in enumerate(["HR", "Engineering", "Marketing", "Sales"]):
+                mui.MenuItem(
+                    department, 
+                    value=department, 
+                    option=f"option-{index}",
+                    id=f"dept-{department.lower()}",
+                    sx={
+                        "padding": "12px 16px",
+                        "minHeight": "42px",
+                        "&:hover": {
+                            "backgroundColor": "rgba(0, 0, 0, 0.04)"
+                        }
+                    }
+                )
+
+        # Submit button
+        mui.Button("Submit", id="submit-button", type="submit", variant="contained", color="primary", sx={"marginTop": "20px", "marginBottom": "10px", "float": "right"})
