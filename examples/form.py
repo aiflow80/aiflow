@@ -68,6 +68,6 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
     mui.Typography("Gender:", variant="subtitle1", sx={"marginBottom": "10px"})
 
     with mui.RadioGroup(defaultValue="female", id="gender", sx={"marginBottom": "15px"}):
-        mui.FormControlLabel(value="female", control="Radio", label="Female")
-        mui.FormControlLabel(value="male", control="Radio", label="Male")
-        mui.FormControlLabel(value="other", control="Radio", label="Other")
+        mui.FormControlLabel(value="female", control=mui.Radio(), label="Female")
+        mui.FormControlLabel(value="male", control=mui.Radio(), label="Male")
+        mui.FormControlLabel(value="other", control=mui.Radio(), label="Other")

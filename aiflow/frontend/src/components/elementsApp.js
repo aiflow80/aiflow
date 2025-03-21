@@ -367,6 +367,14 @@ const ElementsApp = ({ args, theme }) => {
       const ControlComponent = loaders.muiElements(finalProps.control);
       finalProps.control = React.createElement(ControlComponent, {});
     }
+    
+    // Add fallback for FormControlLabel with missing control prop
+    if (type === 'FormControlLabel' && finalProps.control === undefined) {
+      // When control is missing (e.g., from WebSocket updates), default to Radio
+      const RadioComponent = loaders.muiElements('Radio');
+      finalProps.control = React.createElement(RadioComponent, {});
+      console.debug('Added fallback Radio control to FormControlLabel:', finalProps.id);
+    }
 
     // Special handling for file inputs only (this part is necessary)
     if (type === 'Input' && finalProps.type === 'file') {

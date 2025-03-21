@@ -74,7 +74,6 @@ class EventBase:
                     asyncio.run(self.send_response(payload))
             except RuntimeError:
                 # Fallback for when we can't get a loop or it's closed
-                logger.warning("Could not use existing event loop, creating new one")
                 loop = asyncio.new_event_loop()
                 asyncio.set_event_loop(loop)
                 loop.run_until_complete(self.send_response(payload))
