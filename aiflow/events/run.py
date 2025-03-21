@@ -11,7 +11,6 @@ def run_module(file_path):
             logger.error(f"Cannot run module: Invalid file path: {file_path}")
             return False
         else:
-            logger.info(f"Running module from full file path: {os.path.abspath(file_path)}")
             # Set the caller file path if event_base exists and caller file is unknown
             if not event_base.caller_file:
                 event_base.set_caller_file(os.path.abspath(file_path))
@@ -20,9 +19,6 @@ def run_module(file_path):
         module_name = os.path.basename(file_path)
         if (module_name.endswith('.py')):
             module_name = module_name[:-3]
-        
-        # Load and execute the module
-        logger.info(f"Running module from file: {file_path}")
         
         # Save original __main__ and sys.argv
         original_main = sys.modules.get('__main__')
@@ -41,7 +37,6 @@ def run_module(file_path):
             
             # Execute the module as if run directly
             spec.loader.exec_module(module)
-            logger.info(f"Successfully executed module: {module_name} as __main__")
             return True
         except RuntimeError as e:
             pass

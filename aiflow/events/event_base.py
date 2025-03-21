@@ -42,10 +42,9 @@ class EventBase:
                 "payload": f"Received your message: {self.last_message}"
             }
             await self.send_response(response)
-            logger.info(f"paired session: {self.session_id} client: {self.sender_id}")
 
             if self.paired:
-                logger.info(f"Already paired with session: {self.session_id} client: {self.sender_id}")
+                logger.info(f"Refresh session: {self.session_id} client: {self.sender_id}")
                 # Run the caller file when already paired and do not reexecute it for the first time
                 if self.caller_file:
                     from aiflow.events.run import run_module

@@ -30,7 +30,6 @@ class Launcher:
 
     def _initialize(self):
         """Initialize all launcher components in one place"""
-        logger.info("Initializing Launcher...")
         self.running = True
         self.processes: Dict[str, subprocess.Popen] = {}
         self.caller_file = self._get_caller_info()
@@ -53,12 +52,9 @@ class Launcher:
         if not self._client_ready.wait(timeout=10):
             raise RuntimeError("Client initialization timeout")
         
-        logger.info("Launcher initialization completed")
-
     @classmethod
     def start(cls):
         if not cls._thread:
-            logger.info("Starting event loop thread...")
             cls._thread = threading.Thread(target=cls._run_event_loop)
             cls._thread.daemon = True
             cls._thread.start()
@@ -69,7 +65,6 @@ class Launcher:
             cls._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(cls._loop)
             cls._loop_ready.set()
-            logger.info("Event loop started")
             cls._loop.run_forever()
         except Exception as e:
             logger.error(f"Event loop error: {e}", exc_info=True)
@@ -83,7 +78,6 @@ class Launcher:
     def _start_server(self):
         """Start WebSocket server and wait for it to be ready"""
         server_script = os.path.join(os.path.dirname(__file__), 'network', 'ws_server.py')
-        logger.info("Starting WebSocket server...")
         
         process = self._start_process(
             'WebSocketServer',
@@ -122,7 +116,6 @@ class Launcher:
             return None
 
     async def _init_client(self):
-        """Initialize WebSocket client and launch browser"""
         try:
             await ws_client.connect()
             await ws_client.wait_for_ready()
@@ -144,16 +137,13 @@ class Launcher:
         return True
 
     def _launch_browser(self, client_id: str):
-        """Launch browser process"""
         browser_script = os.path.join(os.path.dirname(__file__), 'network', 'browser.py')
-        logger.info(f"Launching browser with client_id: {client_id}")
         self._start_process(
             'Browser',
             [sys.executable, "-Xfrozen_modules=off", browser_script, client_id]
         )
 
     def _wait_for_server(self, timeout=10, check_interval=0.5):
-        """Wait for the server to be available"""
         import socket
         start_time = time.time()
         while time.time() - start_time < timeout:
@@ -165,7 +155,6 @@ class Launcher:
         raise TimeoutError("Server failed to start within timeout")
 
     def _monitor_output(self, pipe, prefix):
-        """Monitor and log process output"""
         try:
             for line in iter(pipe.readline, ''):
                 line = line.strip()
@@ -177,7 +166,6 @@ class Launcher:
             pipe.close()
 
     def _exit_handler(self, signum, frame):
-        """Handle exit signals gracefully"""
         logger.info(f"Received signal {signum}, shutting down...")
         self.running = False
         

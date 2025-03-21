@@ -95,7 +95,6 @@ class WebSocketClient:
                 self._connected.set()
                 self._ready.set()
                 asyncio.create_task(self._listen_messages())
-                logger.info(f"Connected successfully with client ID: {self.client_id}")
                 return
             except Exception as e:
                 logger.error(f"Connection attempt {attempt + 1} failed: {str(e)}")

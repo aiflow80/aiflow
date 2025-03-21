@@ -13,25 +13,27 @@ class MUIComponent:
         children: Optional[List[Union[str, "MUIComponent"]]] = None,
         builder: Optional[Any] = None
     ):
+        # Core component properties
         self.type = "text" if module == "text" else type_name
         self.module = module
         self.props = props or {}
         self.children = []
+        self.text_content = None
+        
+        # Relationship tracking
         self._builder = builder
         self._parent = None
-        self.unique_id = self._builder.get_next_id() if self._builder else 0
-        self.text_content = None
-        self._child_components = []
         self._parent_id = None
+        self.unique_id = self._builder.get_next_id() if self._builder else 0
+        self._child_components = []
         self._is_prop_component = False
         self._prop_parent = None
         self._special_props = {}  # Track special component props
 
-        # Handle text content
+        # Handle text content or process children
         if module == "text":
             self.text_content = str(type_name)
         elif children:
-            # Process children dynamically without relying on static configuration
             self._process_children_dynamically(children)
 
     def __call__(self, *args, **kwargs):

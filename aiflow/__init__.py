@@ -1,6 +1,5 @@
 from aiflow.logger import root_logger as logger
 
-logger.info("Initializing aiflow...")
 from aiflow.launcher import Launcher
 from aiflow.mui import mui
 
@@ -14,7 +13,6 @@ def init(wait_timeout=30):
         ready = event_base.wait_until_ready(timeout=wait_timeout)
         if ready:
             event_base.set_caller_file(launcher.caller_file)
-            logger.info(f"EventBase is ready, rendering can begin {launcher.caller_file}")
         else:
             logger.warning("EventBase not ready, timeout occurred")
         
@@ -24,8 +22,6 @@ def init(wait_timeout=30):
         launcher.cleanup()
         launcher.force_exit()
         return False
-
-logger.info("aiflow initialization completed")
 
 try:
     if init():

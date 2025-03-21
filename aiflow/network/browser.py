@@ -13,7 +13,6 @@ logging.basicConfig(
 logger = logging.getLogger('Browser')
 
 def main():
-    logger.info("Starting browser launcher...")
     try:
         if len(sys.argv) < 2:
             logger.error("No client_id provided")
@@ -24,7 +23,6 @@ def main():
         url = f"http://localhost:3001?{urlencode(params)}"
         logger.info(f"Opening browser URL: {url}")
         webbrowser.open(url)
-        logger.info("Browser launched successfully")
         
         # Keep the process running
 
