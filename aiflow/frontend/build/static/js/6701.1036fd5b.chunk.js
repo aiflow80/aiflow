@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkcustom_component_example=self.webpackChunkcustom_component_example||[]).push([[6701],{6701:(e,s,a)=>{a.r(s),a.d(s,{boxClasses:()=>o.A,default:()=>c.A});var c=a(67),o=a(4874)}}]);

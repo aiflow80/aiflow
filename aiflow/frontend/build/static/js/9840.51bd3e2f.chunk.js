@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkcustom_component_example=self.webpackChunkcustom_component_example||[]).push([[9840],{9840:(e,s,t)=>{t.r(s),t.d(s,{default:()=>a.A,getTabsUtilityClass:()=>l.H,tabsClasses:()=>l.A});var a=t(5609),l=t(7068)}}]);

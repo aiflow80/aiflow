@@ -169,13 +169,22 @@ class WebSocketServer:
                 DEFAULT_CONFIG['security']['ssl_cert_path'],
                 DEFAULT_CONFIG['security']['ssl_key_path']
             )
-
+        
+        # Fix the frontend path to point to the correct location
+        frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend", "build")
+        
+        # Verify the path exists
+        if os.path.exists(frontend_path):
+            logger.info(f"Using frontend path: {frontend_path}")
+        else:
+            logger.warning(f"Frontend path does not exist: {frontend_path}")
+        
         return Application([
             (r"/health", HealthHandler),
             (r"/api/data", DataHandler),
             (r"/ws", SecureWebSocketHandler, {"manager": self.manager}),
             (r"/(.*)", StaticFileHandler, {
-                "path": os.path.join(os.path.dirname(__file__), "static"),
+                "path": frontend_path,
                 "default_filename": "index.html"
             }),
         ], debug=False, ssl_options=ssl_options)

@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkcustom_component_example=self.webpackChunkcustom_component_example||[]).push([[4732],{4732:(e,c,p)=>{p.r(c),p.d(c,{default:()=>s.Ay});var s=p(5376)}}]);

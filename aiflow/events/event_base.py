@@ -48,7 +48,8 @@ class EventBase:
                 # Run the caller file when already paired and do not reexecute it for the first time
                 if self.caller_file:
                     from aiflow.events.run import run_module
-                    run_module(self.caller_file)
+                    # Use threaded=True to ensure timing operations work correctly
+                    run_module(self.caller_file, threaded=True)
             else:
                 self.paired = True
                 logger.info(f"Paired session: {self.session_id} with client: {self.sender_id}")
