@@ -1,8 +1,9 @@
 export const themeConfig = {
-  defaultMode: 'dark', // or 'dark'
+  defaultMode: 'dark', // or 'light'
   presets: {
     dark: {
       primary: 'rgb(243, 24, 24)',
+      secondary: 'rgb(24, 15, 51)',
       background: 'rgb(0, 0, 0)',
       paper: 'rgb(8, 18, 39)',
       text: 'rgba(255, 255, 255, 1)',
@@ -10,6 +11,7 @@ export const themeConfig = {
     },
     light: {
       primary: 'rgba(25, 118, 210, 1)',
+      secondary: 'rgba(156, 39, 176, 1)',
       background: 'rgba(255, 255, 255, 1)',
       paper: 'rgba(245, 245, 245, 1)',
       text: 'rgba(0, 0, 0, 0.87)',

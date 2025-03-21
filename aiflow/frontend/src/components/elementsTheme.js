@@ -5,8 +5,36 @@ import { themeConfig } from '../config/theme.config';
 const THEME_PRESETS = themeConfig.presets;
 const ThemeContext = createContext(null);
 
-// Helper function to adjust color lightness
-const adjustColorLightness = (hex, factor) => {
+// Color conversion utility for handling different color formats
+const colorToHex = (color) => {
+  // Handle RGB format
+  if (typeof color === 'string' && color.startsWith('rgb(')) {
+    const rgbValues = color.match(/\d+/g).map(Number);
+    if (rgbValues?.length === 3) {
+      const [r, g, b] = rgbValues;
+      return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
+    }
+  }
+  
+  // Handle RGBA format by stripping alpha
+  if (typeof color === 'string' && color.startsWith('rgba(')) {
+    const rgbaValues = color.match(/\d+(\.\d+)?/g).map(Number);
+    if (rgbaValues?.length >= 3) {
+      const [r, g, b] = rgbaValues;
+      return `#${Math.round(r).toString(16).padStart(2, '0')}${Math.round(g).toString(16).padStart(2, '0')}${Math.round(b).toString(16).padStart(2, '0')}`;
+    }
+  }
+  
+  return color;
+};
+
+// Enhanced color adjustment with proper color format handling
+const adjustColorLightness = (color, factor) => {
+  const hex = colorToHex(color);
+  
+  // Skip if not a valid hex color
+  if (!hex.startsWith('#')) return color;
+  
   // Convert hex to RGB
   let r = parseInt(hex.slice(1, 3), 16);
   let g = parseInt(hex.slice(3, 5), 16);
@@ -21,27 +49,53 @@ const adjustColorLightness = (hex, factor) => {
   return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`;
 };
 
-// Generate color variations from 100 (lightest) to 1000 (darkest)
+// Generate more comprehensive color palette like MUI
 const generateColorVariants = (baseColor) => {
+  const baseHex = colorToHex(baseColor);
   const variants = {};
   
   // Base color will be "500"
-  variants[500] = baseColor;
+  variants[500] = baseHex;
   
-  // Generate lighter variants
-  variants[100] = adjustColorLightness(baseColor, 1.8);
-  variants[200] = adjustColorLightness(baseColor, 1.6);
-  variants[300] = adjustColorLightness(baseColor, 1.4);
-  variants[400] = adjustColorLightness(baseColor, 1.2);
+  // Generate lighter variants (more levels for better granularity)
+  variants[50] = adjustColorLightness(baseHex, 2.0);
+  variants[100] = adjustColorLightness(baseHex, 1.8);
+  variants[200] = adjustColorLightness(baseHex, 1.6);
+  variants[300] = adjustColorLightness(baseHex, 1.4);
+  variants[400] = adjustColorLightness(baseHex, 1.2);
   
   // Generate darker variants
-  variants[600] = adjustColorLightness(baseColor, 0.9);
-  variants[700] = adjustColorLightness(baseColor, 0.8);
-  variants[800] = adjustColorLightness(baseColor, 0.7);
-  variants[900] = adjustColorLightness(baseColor, 0.6);
-  variants[1000] = adjustColorLightness(baseColor, 0.5);
+  variants[600] = adjustColorLightness(baseHex, 0.9);
+  variants[700] = adjustColorLightness(baseHex, 0.8);
+  variants[800] = adjustColorLightness(baseHex, 0.7);
+  variants[900] = adjustColorLightness(baseHex, 0.6);
+  
+  // Add A (accent) variants like MUI
+  variants.A100 = adjustColorLightness(baseHex, 1.5);
+  variants.A200 = adjustColorLightness(baseHex, 1.3);
+  variants.A400 = adjustColorLightness(baseHex, 1.1);
+  variants.A700 = adjustColorLightness(baseHex, 0.85);
+  
+  // Add contrast text calculation
+  variants.contrastText = getContrastText(baseHex);
   
   return variants;
+};
+
+// Calculate contrast text color for accessibility
+const getContrastText = (background) => {
+  const hex = colorToHex(background).replace('#', '');
+  
+  // Convert to RGB
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  
+  // Calculate luminance using WCAG formula
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  
+  // Return white for dark backgrounds, black for light backgrounds
+  return luminance > 0.5 ? 'rgba(0, 0, 0, 0.87)' : '#fff';
 };
 
 // Parse color references like "primary.800"
@@ -66,46 +120,119 @@ const getThemeColors = (mode) => {
   return THEME_PRESETS[validMode];
 };
 
+// Enhanced theme creation function
 const createThemeWithColors = (mode, customColors = {}) => {
   const defaultColors = getThemeColors(mode);
   const colors = {
     primary: customColors.primaryColor || defaultColors.primary,
     secondary: customColors.secondaryColor || defaultColors.secondary || defaultColors.textSecondary,
+    error: customColors.errorColor || '#f44336',
+    warning: customColors.warningColor || '#ff9800',
+    info: customColors.infoColor || '#2196f3',
+    success: customColors.successColor || '#4caf50',
     background: customColors.backgroundColor || defaultColors.background,
     paper: customColors.secondaryBackgroundColor || defaultColors.paper,
     text: customColors.textColor || defaultColors.text,
     textSecondary: customColors.fadedText60 || defaultColors.textSecondary
   };
   
-  // Generate color variants
+  // Generate color variants for all main colors
   const primaryVariants = generateColorVariants(colors.primary);
   const secondaryVariants = generateColorVariants(colors.secondary);
+  const errorVariants = generateColorVariants(colors.error);
+  const warningVariants = generateColorVariants(colors.warning);
+  const infoVariants = generateColorVariants(colors.info);
+  const successVariants = generateColorVariants(colors.success);
   
-  // Create extended color palette
-  const colorPalette = {
-    primary: {
-      ...primaryVariants,
-      main: primaryVariants[500],
-    },
-    secondary: {
-      ...secondaryVariants,
-      main: secondaryVariants[500],
-    },
-    background: {
-      default: parseColorReference(colors.background, { primary: primaryVariants, secondary: secondaryVariants }),
-      paper: parseColorReference(colors.paper, { primary: primaryVariants, secondary: secondaryVariants }),
-    },
-    text: {
-      primary: parseColorReference(colors.text, { primary: primaryVariants, secondary: secondaryVariants }),
-      secondary: parseColorReference(colors.textSecondary, { primary: primaryVariants, secondary: secondaryVariants }),
-    },
-  };
-  
+  // Complete palette with all MUI options
   return createTheme({
     palette: {
       mode,
-      ...colorPalette,
-    }
+      primary: {
+        ...primaryVariants,
+        main: primaryVariants[500],
+        light: primaryVariants[300],
+        dark: primaryVariants[700],
+        contrastText: primaryVariants.contrastText
+      },
+      secondary: {
+        ...secondaryVariants,
+        main: secondaryVariants[500],
+        light: secondaryVariants[300],
+        dark: secondaryVariants[700],
+        contrastText: secondaryVariants.contrastText
+      },
+      error: {
+        main: errorVariants[500],
+        light: errorVariants[300],
+        dark: errorVariants[700],
+        contrastText: errorVariants.contrastText
+      },
+      warning: {
+        main: warningVariants[500],
+        light: warningVariants[300],
+        dark: warningVariants[700],
+        contrastText: warningVariants.contrastText
+      },
+      info: {
+        main: infoVariants[500],
+        light: infoVariants[300],
+        dark: infoVariants[700],
+        contrastText: infoVariants.contrastText
+      },
+      success: {
+        main: successVariants[500],
+        light: successVariants[300],
+        dark: successVariants[700],
+        contrastText: successVariants.contrastText
+      },
+      background: {
+        default: parseColorReference(colors.background, { 
+          primary: primaryVariants, 
+          secondary: secondaryVariants 
+        }),
+        paper: parseColorReference(colors.paper, { 
+          primary: primaryVariants, 
+          secondary: secondaryVariants 
+        }),
+      },
+      text: {
+        primary: parseColorReference(colors.text, { 
+          primary: primaryVariants, 
+          secondary: secondaryVariants 
+        }),
+        secondary: parseColorReference(colors.textSecondary, { 
+          primary: primaryVariants, 
+          secondary: secondaryVariants 
+        }),
+        disabled: 'rgba(0, 0, 0, 0.38)',
+      },
+      divider: 'rgba(0, 0, 0, 0.12)',
+      action: {
+        active: mode === 'light' ? 'rgba(0, 0, 0, 0.54)' : 'rgba(255, 255, 255, 0.7)',
+        hover: mode === 'light' ? 'rgba(0, 0, 0, 0.04)' : 'rgba(255, 255, 255, 0.08)',
+        selected: mode === 'light' ? 'rgba(0, 0, 0, 0.08)' : 'rgba(255, 255, 255, 0.16)',
+        disabled: mode === 'light' ? 'rgba(0, 0, 0, 0.26)' : 'rgba(255, 255, 255, 0.3)',
+        disabledBackground: mode === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)',
+        focus: mode === 'light' ? 'rgba(0, 0, 0, 0.12)' : 'rgba(255, 255, 255, 0.12)',
+      }
+    },
+    // Add MUI's other theme sections
+    typography: {
+      fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+      // Default typography values
+    },
+    spacing: 8, // Default spacing unit
+    breakpoints: {
+      values: {
+        xs: 0,
+        sm: 600,
+        md: 960,
+        lg: 1280,
+        xl: 1920,
+      },
+    },
+    // Can be extended with shape, transitions, zIndex, etc.
   });
 };
 
