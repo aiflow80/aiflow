@@ -48,3 +48,13 @@ def run_module(file_path):
     except Exception as e:
         logger.error(f"Error running module {file_path}: {str(e)}")
         return False
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        script_path = sys.argv[1]
+        # Keep the original sys.argv for the script to use
+        success = run_module(script_path)
+        sys.exit(0 if success else 1)
+    else:
+        print("Usage: python -m aiflow.events.run <script_path> [args...]")
+        sys.exit(1)
