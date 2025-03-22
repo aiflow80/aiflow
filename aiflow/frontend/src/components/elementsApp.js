@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { jsx } from "@emotion/react";
 import Box from "@mui/material/Box";
@@ -124,6 +124,8 @@ const ElementsApp = ({ args, theme }) => {
   const [formEvents, setFormEvents] = useState({});
   const [componentsMap, setComponentsMap] = useState({});
   const { socketService, clientId } = useWebSocket();
+  const pendingUpdatesRef = useRef({});
+  const updateTimeoutRef = useRef(null);
 
   useEffect(() => {
     window.socketService = socketService;
@@ -238,11 +240,15 @@ const ElementsApp = ({ args, theme }) => {
   useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
       if (!payload?.component) return;
-      setComponentsMap((prevMap) => {
-        const newMap = { ...prevMap, [payload.component.id]: payload.component };
-        setUiTree(buildUiTree(newMap));
-        return newMap;
-      });
+      pendingUpdatesRef.current[payload.component.id] = payload.component;
+      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
+      updateTimeoutRef.current = setTimeout(() => {
+        setComponentsMap({ ...pendingUpdatesRef.current });
+        setUiTree(buildUiTree({ ...pendingUpdatesRef.current }));
+        console.debug('New render completed with components:', Object.keys(pendingUpdatesRef.current));
+        pendingUpdatesRef.current = {};
+        updateTimeoutRef.current = null;
+      }, 10);
     });
     return unsub;
   }, [socketService]);
