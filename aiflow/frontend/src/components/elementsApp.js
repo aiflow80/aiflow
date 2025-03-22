@@ -17,6 +17,8 @@ const EVENT_TYPES = {
 
 const sanitizeValue = (value) => {
   if (value === null || value === undefined) return null;
+  // Added check for React elements to avoid recursion issues.
+  if (typeof value === 'object' && value !== null && value.$$typeof) return '[React Element]';
   if (typeof value === 'function') return '[Function]';
   if (value instanceof File) return { name: value.name, type: value.type, size: value.size };
   if (Array.isArray(value)) return value.map(sanitizeValue);
