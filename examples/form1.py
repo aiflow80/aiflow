@@ -15,7 +15,7 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
     mui.Avatar("A", sx={"width": 80, "height": 80, "marginBottom": "20px"})
 
     if events_store.get('events'):
-        with mui.Box(sx={"marginTop": "40px", "padding": "16px",  "borderRadius": "4px"}):
+        with mui.Box(sx={"padding": "16px",  "borderRadius": "4px"}):
             mui.Typography("Event Store Contents:", variant="h6", gutterBottom=True)
             mui.Typography(str(events_store), variant="body2", sx={"whiteSpace": "pre-wrap", "fontFamily": "monospace"})
 

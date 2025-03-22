@@ -103,7 +103,7 @@ const validateElement = (module, element) => {
 const preprocessJsonString = (jsonString) => {
   try {
     const nanMatches = jsonString.match(/NaN/g);
-    if (nanMatches) console.debug('Found NaN values:', nanMatches.length);
+    if (nanMatches) console.log('Found NaN values:', nanMatches.length);
 
     let processed = jsonString
       .replace(/"[^"]+"\s*:\s*NaN/g, match => match.replace(/NaN$/, 'null'))
@@ -242,15 +242,12 @@ const ElementsApp = ({ args, theme }) => {
   useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
       if (!payload?.component) return;
-      pendingUpdatesRef.current[payload.component.id] = payload.component;
-      if (updateTimeoutRef.current) clearTimeout(updateTimeoutRef.current);
-      updateTimeoutRef.current = setTimeout(() => {
-        setComponentsMap({ ...pendingUpdatesRef.current });
-        setUiTree(buildUiTree({ ...pendingUpdatesRef.current }));
-        console.debug('New render completed with components:', Object.keys(pendingUpdatesRef.current));
-        pendingUpdatesRef.current = {};
-        updateTimeoutRef.current = null;
-      }, 10);
+      setComponentsMap(prevMap => {
+        const newMap = { ...prevMap, [payload.component.id]: payload.component };
+        setUiTree(buildUiTree(newMap));
+        console.log('Component updated:', payload.component.id);
+        return newMap;
+      });
     });
     return unsub;
   }, [socketService]);
