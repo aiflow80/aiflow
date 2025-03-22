@@ -3,6 +3,11 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from aiflow import mui
+from aiflow.events import events  # Direct import of the events dictionary
+
+# Now you can directly access event values
+# Example of reading an event value:
+# first_name_value = events.get("first-name", "")
 
 # from streamlit_mui_elements.core.events import event_store
 
@@ -55,7 +60,7 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
     mui.Typography("Years of Experience:", variant="subtitle1")
     mui.Slider(
         id="experience-slider",
-        defaultValue=3,
+        defaultValue=1,
         step=1,
         marks=True,
         min=0,
@@ -113,5 +118,3 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
 
         # Submit button
         mui.Button("Submit", id="submit-button", type="submit", variant="contained", color="primary", sx={"marginTop": "20px", "marginBottom": "10px", "float": "right"})
-
-# mui.process_component_sequence()

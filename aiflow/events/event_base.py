@@ -18,6 +18,8 @@ class EventBase:
         self.session_id = None
         self._ws_client = None
         self.caller_file = None
+        self.events = {}
+        self.events_store = {}
         self.paired = False
         self.message_queue = deque()
         self._processing = False
@@ -46,6 +48,18 @@ class EventBase:
 
             if self.paired:
                 logger.info(f"Refresh session: {self.session_id} client: {self.sender_id}")
+                
+                if message.get('type') == 'events':   
+                    self.events_store = message.get('payload')
+                    # Store event values by ID for easy retrieval
+                    form_events = self.events_store.get('formEvents', [])
+                    for event_id in form_events:
+                        event_data = form_events[event_id]
+                        if 'value' in event_data:
+                            self.events[event_id] = event_data['value']
+                
+                # Reset MUI state before running the module again
+                self.reset_mui_state()
                 # Run the caller file when already paired and do not reexecute it for the first time
                 if self.caller_file:
                     # Run in a separate thread to avoid event loop conflicts
@@ -114,5 +128,11 @@ class EventBase:
     def is_ready(self):
         """Check if EventBase is ready."""
         return self._ready.is_set()
+
+    def reset_mui_state(self):
+        """Reset MUI builder state"""
+        from aiflow.mui import mui
+        mui.reset()
+        logger.info("MUI builder state has been reset")
 
 event_base = EventBase()

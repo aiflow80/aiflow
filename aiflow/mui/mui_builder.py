@@ -34,6 +34,7 @@ class MUIIconAccess:
 
 class MUIBuilder:
     def __init__(self):
+        self.initialized = False
         self._stack: List[MUIComponent] = []
         self._roots: List[MUIComponent] = []
         self._icons = MUIIcons(self)
@@ -45,6 +46,28 @@ class MUIBuilder:
         self._current_parent_id = 0
         self._component_hierarchy = {}
         self._current_parent = None
+
+    def reset(self):
+        """Reset all counters and state of the MUI builder"""
+        self._stack = []
+        self._roots = []
+        self._id_counter = 1
+        self._component_sequence = []
+        self._components = []
+        self._order_counter = 0
+        self._current_parent_id = 0
+        self._component_hierarchy = {}
+        self._current_parent = None
+        # Keep initialized flag - we're just resetting the counters
+
+    def init(self):
+        """Initialize the MUI system"""
+        if self.initialized:
+            return
+        
+        # Perform initialization tasks here
+        self.initialized = True
+        return True
 
     def get_next_id(self) -> int:
         """Get next sequential ID starting from 0 (or 1)"""
@@ -302,7 +325,7 @@ class MUIBuilder:
                         "timestamp": time.time()
                     }
                 })
-                # logger.debug(f"Component {comp['id']} with parent {comp.get('parentId')} sent to sequence")
+                # logger.debug(f"Component {comp['id']} with parent {comp.get('parentId']} sent to sequence")
                 break
 
     def create_component(self, element: str, *args, **props) -> MUIComponent:

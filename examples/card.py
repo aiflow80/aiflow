@@ -7,6 +7,7 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from aiflow import mui
 
 def card_component():
+    # The reset is now automatic when mui is imported
     with mui.Grid(item=True, xs=12):
         with mui.Grid(container=True, spacing=2):
             # for i in range(2):
