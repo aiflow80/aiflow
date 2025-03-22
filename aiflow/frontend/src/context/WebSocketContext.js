@@ -35,25 +35,15 @@ export const WebSocketProvider = ({ children }) => {
             }
 
             const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
-            console.log('📥 WebSocket message received:', {
-              timestamp: new Date().toISOString(),
-              data: data
-            });
+            console.log('📥 WebSocket message received:', { timestamp: new Date().toISOString(), data });
 
             // Handle connection messages
             if (data.type === 'connection') {
               console.log('Connection established with ID:', data.client_id);
-              setClientId(data.client_id);  // Store our client_id
-              
-              // Send pairing message after receiving our client_id
-              if (sessionId) {
-                socket.send(JSON.stringify({
-                  type: 'pair',
-                  client_id: sessionId,
-                  sender_id: data.client_id,  // Use our assigned client_id
-                  payload: 'Connection established'
-                }));
-              }
+              setClientId(data.client_id);
+              sessionId && socket.send(JSON.stringify({
+                type: 'pair', client_id: sessionId, sender_id: data.client_id, payload: 'Connection established'
+              }));
               return;
             }
 
