@@ -33,11 +33,11 @@ const sanitizeValue = (value) => {
   if (value === null || value === undefined) {
     return null;
   }
-  
+
   if (typeof value === 'function') {
     return '[Function]';
   }
-  
+
   if (value instanceof File) {
     return {
       name: value.name,
@@ -45,11 +45,11 @@ const sanitizeValue = (value) => {
       size: value.size
     };
   }
-  
+
   if (Array.isArray(value)) {
     return value.map(sanitizeValue);
   }
-  
+
   if (typeof value === 'object') {
     const cleaned = {};
     for (const [key, val] of Object.entries(value)) {
@@ -57,7 +57,7 @@ const sanitizeValue = (value) => {
     }
     return cleaned;
   }
-  
+
   return value;
 };
 
@@ -76,7 +76,7 @@ const send = async (data) => {
       formEvents: data.formEvents ? sanitizeValue(data.formEvents) : null,
       timestamp: Date.now()
     };
-    
+
     // Send data to local event server if configured
     const eventPort = 8500;
     if (eventPort) {
@@ -100,7 +100,7 @@ const handleFileEvent = async (event, key) => {
 
     const file = event.target.files[0];
     const reader = new FileReader();
-    
+
     reader.onload = () => {
       const fileData = {
         key: key,
@@ -113,12 +113,12 @@ const handleFileEvent = async (event, key) => {
         },
         timestamp: Date.now()
       };
-      
+
       send(fileData);
     };
 
     reader.readAsDataURL(file);
-    
+
   } catch (error) {
     console.error('File handling error:', error);
     send({
@@ -186,7 +186,7 @@ const preprocessJsonString = (jsonString) => {
   try {
     // First try to locate any NaN values
     console.debug('Starting JSON preprocessing');
-    
+
     // Convert standalone NaN values to null using multiple patterns
     let processed = jsonString
       // Handle key-value pairs with NaN
@@ -230,7 +230,7 @@ const ElementsApp = ({ args, theme }) => {
   const handleEvent = useCallback(async (event, key, eventType, props = {}) => {
     try {
       let value;
-      
+
       switch (event?.target?.type) {
         case 'checkbox':
           value = event.target.checked;
@@ -286,7 +286,7 @@ const ElementsApp = ({ args, theme }) => {
           }
         };
         break;
-      
+
       case 'Select':
         handlers.onChange = (event, selectionData) => {
           if (props.type === 'submit') {
@@ -305,7 +305,7 @@ const ElementsApp = ({ args, theme }) => {
           handlers.onChange = async (e) => {
             e.preventDefault();
             e.stopPropagation();
-            
+
             if (e?.target?.files?.length) {
               await handleFileEvent(e, id);
               e.target.value = '';
@@ -319,16 +319,16 @@ const ElementsApp = ({ args, theme }) => {
           handlers.onClick = (e) => handleEvent(e, id, EVENT_TYPES.CLICK, props);
         }
         break;
-      
+
       case 'DataGrid':
         handlers.onFilterModelChange = (filterModel) => {
           send(createEventPayload(id, EVENT_TYPES.FILTER_CHANGE, filterModel));
         };
-        
+
         handlers.onSortModelChange = (sortModel) => {
           send(createEventPayload(id, EVENT_TYPES.SORT_CHANGE, sortModel));
         };
-        
+
         handlers.onPaginationModelChange = (paginationModel) => {
           send(createEventPayload(id, EVENT_TYPES.PAGINATION_CHANGE, paginationModel));
         };
@@ -357,7 +357,7 @@ const ElementsApp = ({ args, theme }) => {
     const LoadedElement = loaders[module](type);
 
     const renderedChildren = children.map(child => renderElement(child));
-    
+
     // Preserve all original props without modification
     const finalProps = { ...convertNode(props, renderElement) };
 
@@ -400,7 +400,7 @@ const ElementsApp = ({ args, theme }) => {
         }
 
         const cleanedData = preprocessJsonString(args.data);
-        
+
         // Verify the cleaning worked
         if (cleanedData.includes('NaN')) {
           console.error('NaN values still present after preprocessing');
@@ -468,12 +468,12 @@ const ElementsApp = ({ args, theme }) => {
 
   return (
     <ElementsTheme theme={theme}>
-      <Box sx={{ 
+      <Box sx={{
         width: '100%',
         boxSizing: 'border-box',
         padding: '20px',
       }}>
-        <ErrorBoundary 
+        <ErrorBoundary
           fallback={
             <div style={{
               padding: '20px',
@@ -486,7 +486,7 @@ const ElementsApp = ({ args, theme }) => {
             }}>
               An error occurred while rendering the component.
             </div>
-          } 
+          }
           onError={(error) => send({ error: error.message })}
         >
           {renderedElements}
@@ -502,12 +502,12 @@ const arePropsEqual = (prevProps, nextProps) => {
   if (prevProps.args?.data !== nextProps.args?.data) {
     return false;
   }
-  
+
   // Check if theme has changed
   if (!dequal(prevProps.theme, nextProps.theme)) {
     return false;
   }
-  
+
   return true;
 };
 
