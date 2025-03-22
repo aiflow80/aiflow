@@ -50,7 +50,7 @@ class EventBase:
                 logger.info(f"Refresh session: {self.session_id} client: {self.sender_id}")
                 
                 if message.get('type') == 'events':   
-                    self.events_store = message.get('payload')
+                    self.events_store['events'] = message.get('payload')
                     # Store event values by ID for easy retrieval
                     form_events = self.events_store.get('formEvents', [])
                     for event_id in form_events:
@@ -63,6 +63,7 @@ class EventBase:
                 # Run the caller file when already paired and do not reexecute it for the first time
                 if self.caller_file:
                     # Run in a separate thread to avoid event loop conflicts
+                    self.is_rerun = True
                     self._run_module_in_thread(self.caller_file)
             else:
                 self.paired = True
