@@ -9,9 +9,11 @@ import loadMuiLab from "./modules/mui/lab";
 import { useWebSocket } from "../context/WebSocketContext";
 
 const loaders = { muiElements: loadMuiElements, muiIcons: loadMuiIcons, muiLab: loadMuiLab };
-const EVENT_TYPES = { CLICK: 'click', CHANGE: 'change', BLUR: 'blur', AUTOCOMPLETE_CHANGE: 'autocomplete-change', 
-  SELECT_CHANGE: 'select-change', FILE_CHANGE: 'file-change', FILTER_CHANGE: 'filter-change', 
-  SORT_CHANGE: 'sort-change', PAGINATION_CHANGE: 'pagination-change' };
+const EVENT_TYPES = {
+  CLICK: 'click', CHANGE: 'change', BLUR: 'blur', AUTOCOMPLETE_CHANGE: 'autocomplete-change',
+  SELECT_CHANGE: 'select-change', FILE_CHANGE: 'file-change', FILTER_CHANGE: 'filter-change',
+  SORT_CHANGE: 'sort-change', PAGINATION_CHANGE: 'pagination-change'
+};
 
 const sanitizeValue = (value) => {
   if (value === null || value === undefined) return null;
@@ -68,9 +70,9 @@ const handleFileEvent = async (event, key, socketService, clientId) => {
 };
 
 const evaluateFunction = (funcString) => {
-  const context = { 
-    TextField: loaders.muiElements("TextField"), 
-    React, createElement: React.createElement 
+  const context = {
+    TextField: loaders.muiElements("TextField"),
+    React, createElement: React.createElement
   };
   const func = new Function(...Object.keys(context), `return ${funcString}`);
   return func(...Object.values(context));
@@ -78,11 +80,11 @@ const evaluateFunction = (funcString) => {
 
 const convertNode = (node, renderElement) => {
   if (node === null || node === undefined) return node;
-  if (typeof node !== "object") 
+  if (typeof node !== "object")
     return (typeof node === "string" && node.startsWith("(params)")) ? evaluateFunction(node) : node;
   if (Array.isArray(node)) return node.map(n => convertNode(n, renderElement));
   if (node.type && node.module) return renderElement(node);
-  
+
   const newObj = {};
   for (const key in node) newObj[key] = convertNode(node[key], renderElement);
   return newObj;
@@ -100,7 +102,7 @@ const preprocessJsonString = (jsonString) => {
   try {
     const nanMatches = jsonString.match(/NaN/g);
     if (nanMatches) console.debug('Found NaN values:', nanMatches.length);
-    
+
     let processed = jsonString
       .replace(/"[^"]+"\s*:\s*NaN/g, match => match.replace(/NaN$/, 'null'))
       .replace(/,\s*NaN\s*,/g, ',null,')
@@ -108,7 +110,7 @@ const preprocessJsonString = (jsonString) => {
       .replace(/,\s*NaN\s*\]/g, ',null]')
       .replace(/\[\s*NaN\s*\]/g, '[null]')
       .replace(/:\s*NaN\b/g, ': null');
-    
+
     if (processed.includes('NaN')) console.error('NaN values still present after preprocessing');
     return processed;
   } catch (error) {
@@ -262,8 +264,10 @@ const ElementsApp = ({ args, theme }) => {
     <ElementsTheme theme={theme}>
       <Box sx={{ width: '100%', boxSizing: 'border-box', padding: '20px' }}>
         <ErrorBoundary
-          fallback={<div style={{ padding: '20px', margin: '20px', backgroundColor: '#ffebee', 
-            border: '1px solid #ef5350', borderRadius: '4px', minHeight: '800px', color: '#d32f2f' }}>
+          fallback={<div style={{
+            padding: '20px', margin: '20px', backgroundColor: '#ffebee',
+            border: '1px solid #ef5350', borderRadius: '4px', minHeight: '800px', color: '#d32f2f'
+          }}>
             An error occurred while rendering the component.
           </div>}
           onError={(error) => sendEvent({ error: error.message })}>
