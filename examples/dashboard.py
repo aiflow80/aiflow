@@ -591,14 +591,14 @@ def dashboard():
                 with mui.Grid(container=True, spacing=2):
                     with mui.Grid(item=True, lg=4, md=6, sm=6, xs=12):
                         earningcard()
-                    with mui.Grid(item=True, lg=4, md=6, sm=6, xs=12):
-                        totalorderlinechartcard()
-                    with mui.Grid(item=True, lg=4, md=12, sm=12, xs=12):
-                        with mui.Grid(container=True, spacing=2):
-                            with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
-                                totalincomedarkcard()
-                            with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
-                                totalincomelightcard()
+                    # with mui.Grid(item=True, lg=4, md=6, sm=6, xs=12):
+                    #     totalorderlinechartcard()
+                    # with mui.Grid(item=True, lg=4, md=12, sm=12, xs=12):
+                    #     with mui.Grid(container=True, spacing=2):
+                    #         with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
+                    #             totalincomedarkcard()
+                    #         with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
+                    #             totalincomelightcard()
             # # Second row
             # with mui.Grid(item=True, xs=12):
             #     with mui.Grid(container=True, spacing=2):

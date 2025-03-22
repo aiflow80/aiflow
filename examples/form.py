@@ -113,3 +113,5 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
 
         # Submit button
         mui.Button("Submit", id="submit-button", type="submit", variant="contained", color="primary", sx={"marginTop": "20px", "marginBottom": "10px", "float": "right"})
+
+# mui.process_component_sequence()

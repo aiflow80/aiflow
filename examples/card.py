@@ -9,7 +9,7 @@ from aiflow import mui
 def card_component():
     with mui.Grid(item=True, xs=12):
         with mui.Grid(container=True, spacing=2):
-            for i in range(2):
+            # for i in range(2):
                 with mui.Grid(item=True, lg=4, md=6, sm=6, xs=12):
                     with mui.Card(
                         sx={

@@ -77,24 +77,27 @@ const send = async (data) => {
       timestamp: Date.now()
     };
 
-    // Send data to local event server if configured
-    const eventPort = 8500;
-    if (eventPort) {
-      await fetch(`http://localhost:${eventPort}/api/data`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(sanitizedData)
-      });
+    // Get the socketService from a global that will be set by the component
+    if (window.socketService) {
+      // Get session_id from URL parameters
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session_id');
+      
+      if (sessionId) {
+        window.socketService.send({
+          type: 'events',
+          client_id: sessionId,
+          sender_id: window.clientId,  // Use our assigned client_id
+          payload: sanitizedData
+        });
+      }
     }
-
   } catch (error) {
     console.error('Failed to serialize data:', error);
   }
 };
 
-const handleFileEvent = async (event, key) => {
+const handleFileEvent = async (event, key, socketService, clientId) => {
   try {
     if (!event?.target?.files?.length) return;
 
@@ -114,7 +117,7 @@ const handleFileEvent = async (event, key) => {
         timestamp: Date.now()
       };
 
-      send(fileData);
+      send(fileData, socketService, clientId);
     };
 
     reader.readAsDataURL(file);
@@ -126,7 +129,7 @@ const handleFileEvent = async (event, key) => {
       type: 'error',
       value: error.message,
       timestamp: Date.now()
-    });
+    }, socketService, clientId);
   }
 };
 
@@ -215,7 +218,23 @@ const ElementsApp = ({ args, theme }) => {
   const [formEvents, setFormEvents] = useState({});
   const [componentsMap, setComponentsMap] = useState({});
 
-  const { socketService } = useWebSocket(); // Now called at top level
+  const { socketService, clientId } = useWebSocket(); // Extract clientId as well
+
+  // Make socketService and clientId globally available to send function
+  useEffect(() => {
+    window.socketService = socketService;
+    window.clientId = clientId;
+  }, [socketService, clientId]);
+
+  // Create a wrapper for send that includes the context variables
+  const sendEvent = useCallback((data) => {
+    send(data, socketService, clientId);
+  }, [socketService, clientId]);
+
+  // Create a wrapper for handleFileEvent
+  const handleFileEventWithContext = useCallback((event, key) => {
+    handleFileEvent(event, key, socketService, clientId);
+  }, [socketService, clientId]);
 
   const handleFormEvent = useCallback((eventData) => {
     setFormEvents(prev => ({
@@ -247,7 +266,7 @@ const ElementsApp = ({ args, theme }) => {
 
       // Check if this element has type="submit"
       if (props.type === 'submit') {
-        await send({
+        await sendEvent({
           key,
           type: props.type,
           value,
@@ -264,9 +283,9 @@ const ElementsApp = ({ args, theme }) => {
 
     } catch (error) {
       console.error('Event handling error:', error);
-      await send(createEventPayload(key, 'error', error.message));
+      await sendEvent(createEventPayload(key, 'error', error.message));
     }
-  }, [formEvents]);
+  }, [formEvents, sendEvent]);
 
   const createEventHandlers = useCallback((id, type, props) => {
     const handlers = {};
@@ -277,7 +296,7 @@ const ElementsApp = ({ args, theme }) => {
       case 'Autocomplete':
         handlers.onChange = (event, value, selectionData) => {
           if (props.type === 'submit') {
-            send({ key: id, type: props.type, value: selectionData });
+            sendEvent({ key: id, type: props.type, value: selectionData });
           } else {
             handleFormEvent({
               key: id,
@@ -290,7 +309,7 @@ const ElementsApp = ({ args, theme }) => {
       case 'Select':
         handlers.onChange = (event, selectionData) => {
           if (props.type === 'submit') {
-            send({ key: id, type: props.type, value: selectionData });
+            sendEvent({ key: id, type: props.type, value: selectionData });
           } else {
             handleFormEvent({
               key: id,
@@ -307,7 +326,7 @@ const ElementsApp = ({ args, theme }) => {
             e.stopPropagation();
 
             if (e?.target?.files?.length) {
-              await handleFileEvent(e, id);
+              await handleFileEventWithContext(e, id);
               e.target.value = '';
             }
           };
@@ -322,15 +341,15 @@ const ElementsApp = ({ args, theme }) => {
 
       case 'DataGrid':
         handlers.onFilterModelChange = (filterModel) => {
-          send(createEventPayload(id, EVENT_TYPES.FILTER_CHANGE, filterModel));
+          sendEvent(createEventPayload(id, EVENT_TYPES.FILTER_CHANGE, filterModel));
         };
 
         handlers.onSortModelChange = (sortModel) => {
-          send(createEventPayload(id, EVENT_TYPES.SORT_CHANGE, sortModel));
+          sendEvent(createEventPayload(id, EVENT_TYPES.SORT_CHANGE, sortModel));
         };
 
         handlers.onPaginationModelChange = (paginationModel) => {
-          send(createEventPayload(id, EVENT_TYPES.PAGINATION_CHANGE, paginationModel));
+          sendEvent(createEventPayload(id, EVENT_TYPES.PAGINATION_CHANGE, paginationModel));
         };
         break;
 
@@ -340,7 +359,7 @@ const ElementsApp = ({ args, theme }) => {
     }
 
     return handlers;
-  }, [handleEvent, handleFormEvent]);
+  }, [handleEvent, handleFormEvent, sendEvent, handleFileEventWithContext]);
 
   // Memoize the renderElement function to prevent recreating it on every render
   const renderElement = useCallback((node) => {
@@ -417,10 +436,10 @@ const ElementsApp = ({ args, theme }) => {
             Math.min(args.data.length, error.position + 100)
           )
         });
-        send({ error: `Failed to parse JSON: ${error.message}` });
+        sendEvent({ error: `Failed to parse JSON: ${error.message}` });
       }
     }
-  }, [args?.data]);
+  }, [args?.data, sendEvent]);
 
   useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
@@ -487,7 +506,7 @@ const ElementsApp = ({ args, theme }) => {
               An error occurred while rendering the component.
             </div>
           }
-          onError={(error) => send({ error: error.message })}
+          onError={(error) => sendEvent({ error: error.message })}
         >
           {renderedElements}
         </ErrorBoundary>
