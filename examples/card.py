@@ -45,7 +45,7 @@ def card_component():
                                 for i in range(2):
                                     time.sleep(1)
                                     mui.Avatar(
-                                        "R", sx={"bgcolor": "red", "marginTop": 1}
+                                        "R", sx={"bgcolor": "orange", "marginTop": 1}
                                     )
 
 

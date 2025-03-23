@@ -75,6 +75,14 @@ export const WebSocketProvider = ({ children }) => {
               return;
             }
 
+            // Handle direct message type events
+            if (data.type === 'paired') {
+              socket.dispatchEvent(new CustomEvent('component_update', {
+                detail: data.payload
+              }));
+              return;
+            }
+
             console.warn('Unhandled message format:', data);
           } catch (error) {
             console.error('Error handling message:', error, event.data);
