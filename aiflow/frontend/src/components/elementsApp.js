@@ -125,9 +125,17 @@ const ElementsApp = ({ args, theme }) => {
   const [uiTree, setUiTree] = useState([]);
   const [formEvents, setFormEvents] = useState({});
   const [componentsMap, setComponentsMap] = useState({});
+  const [isFirstRender, setIsFirstRender] = useState(true);
   const { socketService, clientId } = useWebSocket();
   const pendingUpdatesRef = useRef({});
   const updateTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    // Set isFirstRender to false after initial render
+    if (isFirstRender) {
+      setIsFirstRender(false);
+    }
+  }, [isFirstRender]);
 
   useEffect(() => {
     window.socketService = socketService;
@@ -243,9 +251,18 @@ const ElementsApp = ({ args, theme }) => {
     const unsub = socketService.addListener('component_update', (payload) => {
       if (!payload?.component) return;
       setComponentsMap(prevMap => {
-        const newMap = { ...prevMap, [payload.component.id]: payload.component };
-        setUiTree(buildUiTree(newMap));
-        console.log('Component updated:', payload.component.id);
+        // Update the component with new details (effectively replacing the old version)
+        const newMap = {
+          ...prevMap,
+          [payload.component.id]: {
+            ...payload.component,
+            timestamp: payload.timestamp
+          }
+        };
+        // Rebuild the UI tree based on the updated componentMap
+        let tree = buildUiTree(newMap);
+        setUiTree(tree);
+        console.log('UiTree updated with new component details:', tree);
         return newMap;
       });
     });

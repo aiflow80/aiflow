@@ -46,7 +46,7 @@ class EventBase:
                     "status": "success",
                     "client_id": self.sender_id,
                     "session_id": self.session_id,
-                    "time_stamp": time.time(),
+                    "timestamp": time.time()
                 }
             }
             # Use the async version since we're in an async context
