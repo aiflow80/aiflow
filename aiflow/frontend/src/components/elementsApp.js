@@ -125,18 +125,9 @@ const ElementsApp = ({ args, theme }) => {
   const [uiTree, setUiTree] = useState([]);
   const [formEvents, setFormEvents] = useState({});
   const [componentsMap, setComponentsMap] = useState({});
-  const [isFirstRender, setIsFirstRender] = useState(true);
   const { socketService, clientId } = useWebSocket();
-  const pendingUpdatesRef = useRef({});
-  const updateTimeoutRef = useRef(null);
 
-  useEffect(() => {
-    // Set isFirstRender to false after initial render
-    if (isFirstRender) {
-      setIsFirstRender(false);
-    }
-  }, [isFirstRender]);
-
+  
   useEffect(() => {
     window.socketService = socketService;
     window.clientId = clientId;
@@ -249,7 +240,10 @@ const ElementsApp = ({ args, theme }) => {
 
   useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
-      if (!payload?.component) return;
+      if (!payload?.component) {
+        return;
+      }
+      
       setComponentsMap(prevMap => {
         // Update the component with new details (effectively replacing the old version)
         const newMap = {
