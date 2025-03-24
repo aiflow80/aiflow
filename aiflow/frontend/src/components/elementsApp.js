@@ -125,6 +125,8 @@ const ElementsApp = ({ args, theme }) => {
   const [uiTree, setUiTree] = useState([]);
   const [formEvents, setFormEvents] = useState({});
   const [componentsMap, setComponentsMap] = useState({});
+  const [isFirstRender, setIsFirstRender] = useState(true); // Added state variable
+  const [currentComponentUpdate, setCurrentComponentUpdate] = useState(null);
   const { socketService, clientId } = useWebSocket();
 
   
@@ -240,17 +242,30 @@ const ElementsApp = ({ args, theme }) => {
 
   useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
-      if (!payload?.component) {
-        return;
+
+      const hasComponents = Object.keys(componentsMap).length > 0;
+      console.log('ComponentsMap has items:', hasComponents, Object.keys(componentsMap).length);
+
+      if (payload?.component) {
+        setCurrentComponentUpdate({
+          component: payload.component,
+          timestamp: payload.timestamp
+        });
       }
-      
+    });
+    return unsub;
+  }, [socketService]);
+
+  useEffect(() => {
+    if (currentComponentUpdate) {
+      // Check if componentsMap has items and log      
       setComponentsMap(prevMap => {
         // Update the component with new details (effectively replacing the old version)
         const newMap = {
           ...prevMap,
-          [payload.component.id]: {
-            ...payload.component,
-            timestamp: payload.timestamp
+          [currentComponentUpdate.component.id]: {
+            ...currentComponentUpdate.component,
+            timestamp: currentComponentUpdate.timestamp
           }
         };
         // Rebuild the UI tree based on the updated componentMap
@@ -259,9 +274,10 @@ const ElementsApp = ({ args, theme }) => {
         console.log('UiTree updated with new component details:', tree);
         return newMap;
       });
-    });
-    return unsub;
-  }, [socketService]);
+      // Reset current component update after processing
+      setCurrentComponentUpdate(null);
+    }
+  }, [currentComponentUpdate]);
 
   function buildUiTree(map) {
     const lookup = {};
