@@ -24,6 +24,7 @@ class EventBase:
         self.events = {}
         self.events_store = {}
         self.paired = False
+        self.streaming_id = None
         self.message_queue = deque()
         self._processing = False
         self._ready = threading.Event()
@@ -48,6 +49,7 @@ class EventBase:
                     "client_id": self.sender_id,
                     "session_id": self.session_id,
                     "timestamp": time.time(),
+                    "streaming_id": self.streaming_id,
                 }
             }
             # Use the async version since we're in an async context

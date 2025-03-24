@@ -1,5 +1,6 @@
 from typing import Any, Dict, List, Optional, Union
 import time
+from aiflow.events import event_base
 
 class MUIComponent:
     _sent_components = {}
@@ -160,7 +161,8 @@ class MUIComponent:
             "id": component_id,
             "module": self.module,
             "props": self._process_props(),
-            "parentId": parent_id
+            "parentId": parent_id,
+            "streaming_id": getattr(self, "streaming_id", event_base.streaming_id)
         }
         
         if self.text_content is not None:

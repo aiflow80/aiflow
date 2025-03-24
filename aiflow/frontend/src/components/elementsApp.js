@@ -195,9 +195,51 @@ const ElementsApp = ({ args, theme }) => {
     return handlers;
   }
 
+  useEffect(() => {
+    const unsub = socketService.addListener('component_update', (payload) => {
+      if (!payload?.component) {
+        setStreamingId(payload.streaming_id)
+        return;
+      }
+
+      setComponentsMap(prevMap => {
+        // Create a new map with all existing components
+        const newMap = { ...prevMap };
+
+        // Add or update the component from the payload
+        newMap[payload.component.id] = {
+          ...payload.component,
+        };
+
+        return newMap;
+      });
+    });
+    return unsub;
+  }, [socketService]);
+
+  // Add a separate effect to update the UI tree when the component map changes
+  useEffect(() => {
+    const tree = buildUiTree(componentsMap);
+    setUiTree(tree);
+    console.log('UiTree updated with new component details:', tree);
+  }, [componentsMap]);
+
+  function buildUiTree(map) {
+    const lookup = {};
+    Object.values(map).forEach(comp => lookup[comp.id] = { ...comp, children: [...(comp.children || [])] });
+    Object.values(lookup).forEach(comp => {
+      if (comp.parentId && lookup[comp.parentId]) lookup[comp.parentId].children.push(comp);
+    });
+    return Object.values(lookup).filter(c => !c.parentId);
+  }
+
   function renderElement(node) {
     const { module, type, props = {}, children = [], content } = node;
     if (module === "text" || type === "text") return <span>{props?.content || content || ""}</span>;
+
+    if (node.streaming_id != streamingId) {
+      console.log('streamingId not equal to node streamingId', node.streaming_id, streamingId);   
+    }
 
     validateElement(module, type);
     const LoadedElement = loaders[module](type);
@@ -225,45 +267,6 @@ const ElementsApp = ({ args, theme }) => {
       } else Object.assign(finalProps, eventHandlers);
     }
     return jsx(LoadedElement, finalProps, ...renderedChildren);
-  }
-
-  useEffect(() => {
-    const unsub = socketService.addListener('component_update', (payload) => {
-      if (!payload?.component) {
-        return;
-      }
-
-      setComponentsMap(prevMap => {
-        // Create a new map with all existing components
-        const newMap = { ...prevMap };
-
-        // Add or update the component from the payload
-        newMap[payload.component.id] = {
-          ...payload.component,
-          timestamp: payload.timestamp,
-          streamingId: payload.streaming_id
-        };
-
-        return newMap;
-      });
-    });
-    return unsub;
-  }, [socketService]);
-
-  // Add a separate effect to update the UI tree when the component map changes
-  useEffect(() => {
-    const tree = buildUiTree(componentsMap);
-    setUiTree(tree);
-    console.log('UiTree updated with new component details:', tree);
-  }, [componentsMap]);
-
-  function buildUiTree(map) {
-    const lookup = {};
-    Object.values(map).forEach(comp => lookup[comp.id] = { ...comp, children: [...(comp.children || [])] });
-    Object.values(lookup).forEach(comp => {
-      if (comp.parentId && lookup[comp.parentId]) lookup[comp.parentId].children.push(comp);
-    });
-    return Object.values(lookup).filter(c => !c.parentId);
   }
 
   const elements = uiTree.map((node, index) => (
