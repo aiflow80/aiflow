@@ -234,13 +234,8 @@ const ElementsApp = ({ args, theme }) => {
       }
 
       setComponentsMap(prevMap => {
-        // Create a new empty map
-        const newMap = {};
-
-        // Copy all existing components from previous map
-        for (const [id, component] of Object.entries(prevMap)) {
-          newMap[id] = component;
-        }
+        // Create a new map with all existing components
+        const newMap = { ...prevMap };
 
         // Add or update the component from the payload
         newMap[payload.component.id] = {
@@ -249,23 +244,18 @@ const ElementsApp = ({ args, theme }) => {
           streamingId: payload.streaming_id
         };
 
-        // Only update the component if it already exists in the map
-        var wMap = {};
-        wMap[payload.component.id] = {
-          ...payload.component,
-          timestamp: payload.timestamp,
-          streamingId: payload.streaming_id
-        };
-
-        // Rebuild the UI tree based on the updated componentMap
-        let tree = buildUiTree(newMap);
-        setUiTree(tree);
-        console.log('UiTree updated with new component details:', tree);
         return newMap;
       });
     });
     return unsub;
   }, [socketService]);
+
+  // Add a separate effect to update the UI tree when the component map changes
+  useEffect(() => {
+    const tree = buildUiTree(componentsMap);
+    setUiTree(tree);
+    console.log('UiTree updated with new component details:', tree);
+  }, [componentsMap]);
 
   function buildUiTree(map) {
     const lookup = {};
