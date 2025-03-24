@@ -1,6 +1,7 @@
 import asyncio
 from collections import deque
 import time
+import uuid
 from aiflow import logger
 import threading
 
@@ -37,16 +38,16 @@ class EventBase:
         self.last_message = message.get("payload")
         self.sender_id = message.get("sender_id")
         self.session_id = message.get("client_id")
+        self.streaming_id = uuid.uuid4().hex
 
         if self.sender_id:
-
             response = {
                 "type": "paired",
                 "payload": {
                     "status": "success",
                     "client_id": self.sender_id,
                     "session_id": self.session_id,
-                    "timestamp": time.time()
+                    "timestamp": time.time(),
                 }
             }
             # Use the async version since we're in an async context
@@ -121,6 +122,28 @@ class EventBase:
         except Exception as e:
             logger.error(f"Failed to send response asynchronously: {e}")
             self.queue_message(payload)
+            
+    def send_component_update(self, component_dict):
+        """Send a component update message to the client synchronously"""
+        payload = {
+            "type": "component_update",
+            "payload": {
+                "component": component_dict,
+                "timestamp": time.time()
+            }
+        }
+        self.send_response(payload)
+        
+    async def send_component_update_async(self, component_dict):
+        """Send a component update message to the client asynchronously"""
+        payload = {
+            "type": "component_update",
+            "payload": {
+                "component": component_dict,
+                "timestamp": time.time()
+            }
+        }
+        await self.send_response_async(payload)
 
     # Main send method - choose sync by default
     def send_response(self, payload):

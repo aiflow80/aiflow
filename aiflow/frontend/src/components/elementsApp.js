@@ -126,10 +126,10 @@ const ElementsApp = ({ args, theme }) => {
   const [formEvents, setFormEvents] = useState({});
   const [componentsMap, setComponentsMap] = useState({});
   const [isFirstRender, setIsFirstRender] = useState(true); // Added state variable
-  const [currentComponentUpdate, setCurrentComponentUpdate] = useState(null);
+  const [streamingId, setStreamingId] = useState(null); // Added streamingId state variable
   const { socketService, clientId } = useWebSocket();
 
-  
+
   useEffect(() => {
     window.socketService = socketService;
     window.clientId = clientId;
@@ -228,56 +228,44 @@ const ElementsApp = ({ args, theme }) => {
   }
 
   useEffect(() => {
-    if (args?.data) {
-      try {
-        const cleanedData = preprocessJsonString(args.data);
-        const parsedData = JSON.parse(cleanedData);
-        setUiTree(parsedData);
-      } catch (error) {
-        console.error('Parse error:', { message: error.message });
-        sendEvent({ error: `Failed to parse JSON: ${error.message}` });
-      }
-    }
-  }, [args?.data]);
-
-  useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
-
-      const hasComponents = Object.keys(componentsMap).length > 0;
-      console.log('ComponentsMap has items:', hasComponents, Object.keys(componentsMap).length);
-
-      if (payload?.component) {
-        setCurrentComponentUpdate({
-          component: payload.component,
-          timestamp: payload.timestamp
-        });
+      if (!payload?.component) {
+        return;
       }
-    });
-    return unsub;
-  }, [socketService]);
 
-  useEffect(() => {
-    if (currentComponentUpdate) {
-      // Check if componentsMap has items and log      
       setComponentsMap(prevMap => {
-        // Update the component with new details (effectively replacing the old version)
-        const newMap = {
-          ...prevMap,
-          [currentComponentUpdate.component.id]: {
-            ...currentComponentUpdate.component,
-            timestamp: currentComponentUpdate.timestamp
-          }
+        // Create a new empty map
+        const newMap = {};
+
+        // Copy all existing components from previous map
+        for (const [id, component] of Object.entries(prevMap)) {
+          newMap[id] = component;
+        }
+
+        // Add or update the component from the payload
+        newMap[payload.component.id] = {
+          ...payload.component,
+          timestamp: payload.timestamp,
+          streamingId: payload.streaming_id
         };
+
+        // Only update the component if it already exists in the map
+        var wMap = {};
+        wMap[payload.component.id] = {
+          ...payload.component,
+          timestamp: payload.timestamp,
+          streamingId: payload.streaming_id
+        };
+
         // Rebuild the UI tree based on the updated componentMap
         let tree = buildUiTree(newMap);
         setUiTree(tree);
         console.log('UiTree updated with new component details:', tree);
         return newMap;
       });
-      // Reset current component update after processing
-      setCurrentComponentUpdate(null);
-    }
-  }, [currentComponentUpdate]);
+    });
+    return unsub;
+  }, [socketService]);
 
   function buildUiTree(map) {
     const lookup = {};

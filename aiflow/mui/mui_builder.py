@@ -322,7 +322,8 @@ class MUIBuilder:
                     "type": "component_update",
                     "payload": {
                         "component": comp,
-                        "timestamp": time.time()
+                        "timestamp": time.time(),
+                        "streaming_id": event_base.streaming_id
                     }
                 })
                 # logger.debug(f"Component {comp['id']} with parent {comp.get('parentId']} sent to sequence")
@@ -410,7 +411,8 @@ class MUIBuilder:
                 "type": "component_update",
                 "payload": {
                     "component": component_dict,
-                    "timestamp": time.time()
+                    "timestamp": time.time(),
+                    "streaming_id": event_base.streaming_id
                 }
             })
             
