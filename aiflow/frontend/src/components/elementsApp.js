@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { jsx } from "@emotion/react";
 import Box from "@mui/material/Box";
@@ -136,32 +136,25 @@ const ElementsApp = ({ args, theme }) => {
     window.clientId = clientId;
   }, [socketService, clientId]);
 
-  function sendEvent(data) { send(data, socketService, clientId); }
-  function handleFileEventWithContext(event, key) { handleFileEvent(event, key, socketService, clientId); }
-  function handleFormEvent(eventData) {
+  // Memoize send event function
+  const sendEvent = useCallback((data) => {
+    send(data, socketService, clientId);
+  }, [socketService, clientId]);
+  
+  // Memoize file event handler
+  const handleFileEventWithContext = useCallback((event, key) => {
+    handleFileEvent(event, key, socketService, clientId);
+  }, [socketService, clientId]);
+  
+  // Memoize form event handler
+  const handleFormEvent = useCallback((eventData) => {
     setFormEvents(prev => ({
       ...prev, [eventData.key]: { id: eventData.key, value: eventData.value }
     }));
-  }
+  }, []);
 
-  function handleEvent(event, key, eventType, props = {}) {
-    try {
-      let value;
-      const targetType = event?.target?.type;
-      if (targetType === 'checkbox') value = event.target.checked;
-      else if (targetType === 'radio' || targetType === 'button') value = targetType === 'button' ? 'clicked' : event.target.value;
-      else value = event?.target?.value;
-
-      if (props.type === 'submit') sendEvent({ key, type: props.type, value, formEvents });
-      else if (value !== undefined && value !== null && value !== '')
-        handleFormEvent({ key, value });
-    } catch (error) {
-      console.error('Event handling error:', error);
-      sendEvent(createEventPayload(key, 'error', error.message));
-    }
-  }
-
-  function createEventHandlers(id, type, props) {
+  // Memoize event handler creator
+  const createEventHandlers = useCallback((id, type, props) => {
     if (!id) return {};
     const handlers = {};
 
@@ -194,13 +187,31 @@ const ElementsApp = ({ args, theme }) => {
       handlers.onChange = (e) => handleEvent(e, id, EVENT_TYPES.CHANGE, props);
     }
     return handlers;
-  }
+  }, [sendEvent, handleFormEvent, handleFileEventWithContext]);
+
+  // Memoize the event handler
+  const handleEvent = useCallback((event, key, eventType, props = {}) => {
+    try {
+      let value;
+      const targetType = event?.target?.type;
+      if (targetType === 'checkbox') value = event.target.checked;
+      else if (targetType === 'radio' || targetType === 'button') value = targetType === 'button' ? 'clicked' : event.target.value;
+      else value = event?.target?.value;
+
+      if (props.type === 'submit') sendEvent({ key, type: props.type, value, formEvents });
+      else if (value !== undefined && value !== null && value !== '')
+        handleFormEvent({ key, value });
+    } catch (error) {
+      console.error('Event handling error:', error);
+      sendEvent(createEventPayload(key, 'error', error.message));
+    }
+  }, [sendEvent, handleFormEvent, formEvents]);
 
   useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
       if (!payload?.component) {
         setStreamingStart(payload.time_stamp); // Set streaming start flag for new session
-        console.warn('New streaming session started:', payload.streaming_id);
+        console.warn('New streaming session started:', payload.time_stamp);
         return;
       } else {
         console.log('Component update received:', payload);
@@ -223,40 +234,22 @@ const ElementsApp = ({ args, theme }) => {
 
   // Add a separate effect to update the UI tree when the component map changes
   useEffect(() => {
-    const tree = buildUiTree(componentsMap);
-    // Recursively filter nodes: only keep nodes with time_stamp >= streamingStart
-    const filterTree = (nodes) => {
-      return nodes.reduce((acc, node) => {
-        let newNode = { ...node };
-
-        // Recursively filter children first
-        if (node.children && node.children.length) {
-          newNode.children = filterTree(node.children);
-        }
-
-        // Check if component should be kept based on timestamp
-        if (node.time_stamp) {
-          // Keep node only if its timestamp is newer than or equal to streamingStart
-          if (node.time_stamp >= streamingStart) {
-            acc.push(newNode);
-          }
-        } else {
-          // Keep nodes without timestamps (likely static elements)
-          acc.push(newNode);
-        }
-
-        return acc;
-      }, []);
-    };
-
-    const filteredTree = filterTree(tree);
-    console.log('Filtered tree:', filteredTree);
-
-    setUiTree(tree);
-    console.log('UiTree updated with new component details:', tree);
+    console.log('ComponentsMap updated, rebuilding UI tree');
   }, [componentsMap]);
 
+  // Memoize UI tree construction
+  const memoizedTree = useMemo(() => {
+    return buildUiTree(componentsMap);
+  }, [componentsMap]);
+
+  // Update UI tree when memoized tree changes
+  useEffect(() => {
+    setUiTree(memoizedTree);
+    console.log('UiTree updated with new component details:', memoizedTree);
+  }, [memoizedTree]);
+
   function buildUiTree(map) {
+    console.log('streamingStart:', streamingStart);
     const lookup = {};
     Object.values(map).forEach(comp => lookup[comp.id] = { ...comp, children: [...(comp.children || [])] });
     Object.values(lookup).forEach(comp => {
@@ -265,7 +258,8 @@ const ElementsApp = ({ args, theme }) => {
     return Object.values(lookup).filter(c => !c.parentId);
   }
 
-  function renderElement(node) {
+  // Memoize the renderElement function
+  const renderElement = useCallback((node) => {
     const { module, type, props = {}, children = [], content } = node;
     if (module === "text" || type === "text") return <span>{props?.content || content || ""}</span>;
 
@@ -295,11 +289,23 @@ const ElementsApp = ({ args, theme }) => {
       } else Object.assign(finalProps, eventHandlers);
     }
     return jsx(LoadedElement, finalProps, ...renderedChildren);
-  }
+  }, [createEventHandlers]);
 
-  const elements = uiTree.map((node, index) => (
-    <React.Fragment key={node.id || index}>{renderElement(node)}</React.Fragment>
-  ));
+  // Create a memoized component for rendering individual elements
+  const MemoizedElement = React.memo(({ node, index }) => {
+    return <React.Fragment key={node.id || index}>{renderElement(node)}</React.Fragment>;
+  }, (prevProps, nextProps) => {
+    // Custom comparison function - only re-render if the node ID or content changed
+    return prevProps.node.id === nextProps.node.id && 
+           JSON.stringify(prevProps.node) === JSON.stringify(nextProps.node);
+  });
+
+  // Render the elements using memoized components
+  const elements = useMemo(() => {
+    return uiTree.map((node, index) => (
+      <MemoizedElement key={node.id || index} node={node} index={index} />
+    ));
+  }, [uiTree]);
 
   return (
     <ElementsTheme theme={theme}>
@@ -319,4 +325,4 @@ const ElementsApp = ({ args, theme }) => {
   );
 };
 
-export default ElementsApp;
+export default React.memo(ElementsApp);
