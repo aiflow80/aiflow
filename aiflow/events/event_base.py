@@ -39,7 +39,6 @@ class EventBase:
         self.last_message = message.get("payload")
         self.sender_id = message.get("sender_id")
         self.session_id = message.get("client_id")
-        self.streaming_id = uuid.uuid4().hex
 
         if self.sender_id:
             response = {
@@ -48,10 +47,10 @@ class EventBase:
                     "status": "success",
                     "client_id": self.sender_id,
                     "session_id": self.session_id,
-                    "timestamp": time.time(),
-                    "streaming_id": self.streaming_id,
+                    "time_stamp": time.time(),
                 }
             }
+
             # Use the async version since we're in an async context
             await self.send_response_async(response)
 
@@ -91,7 +90,6 @@ class EventBase:
         def _run():
             try:
                 from aiflow.events.run import run_module
-
                 run_module(module_path, method="runpy")
             except Exception as e:
                 logger.error(f"Error running module {module_path}: {e}")

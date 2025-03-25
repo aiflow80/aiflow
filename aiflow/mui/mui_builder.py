@@ -374,9 +374,6 @@ class MUIBuilder:
                 if not comp.get("props") and hasattr(comp, "props"):
                     comp["props"] = comp.props
 
-                if event_base.streaming_id is None:
-                    pass
-
                 self.send_response_sync(comp)
                 # logger.debug(f"Component {comp['id']} with parent {comp.get('parentId']} sent to sequence")
                 break
@@ -413,13 +410,11 @@ class MUIBuilder:
                 prop_value._is_prop_component = True
                 prop_value._prop_key = key
 
-        # Set streaming_id for the component
-        component.streaming_id = event_base.streaming_id
+        component.time_stamp = time.time
         
-        # Set streaming_id for control components inside props
         for key, prop_value in processed_props.items():
             if key == "control" and isinstance(prop_value, MUIComponent):
-                prop_value.streaming_id = event_base.streaming_id
+                prop_value.time_stamp = time.time()
 
         # Create component info
         component_info = {
@@ -449,6 +444,9 @@ class MUIBuilder:
 
         # Build component dict
         component_dict = component.to_dict()
+        
+        component_dict["time_stamp"] = time.time()
+
         if current_parent_id:
             component_dict["parentId"] = current_parent_id
 
@@ -471,14 +469,7 @@ class MUIBuilder:
         if not [item for item in self._component_sequence if not item["props_updated"]]:
             self._components.append(component_dict)
 
-            if event_base.streaming_id is None:
-                pass
-
             self.send_response_sync(component_dict)
-
-            logger.debug(
-                f"Component {component_dict['id']} with parent {component_dict.get('parentId')} sent to sequence"
-            )
 
         return component
 
@@ -488,7 +479,6 @@ class MUIBuilder:
                 "type": "component_update",
                 "payload": {
                     "component": component,
-                    "timestamp": time.time(),
                 },
             }
         )

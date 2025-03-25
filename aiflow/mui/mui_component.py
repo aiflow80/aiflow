@@ -162,7 +162,6 @@ class MUIComponent:
             "module": self.module,
             "props": self._process_props(),
             "parentId": parent_id,
-            "streaming_id": getattr(self, "streaming_id", event_base.streaming_id)
         }
         
         if self.text_content is not None:

@@ -123,10 +123,11 @@ const preprocessJsonString = (jsonString) => {
 
 const ElementsApp = ({ args, theme }) => {
   const [uiTree, setUiTree] = useState([]);
+  const [filteredUiTree, setFilteredUiTree] = useState([]);
   const [formEvents, setFormEvents] = useState({});
   const [componentsMap, setComponentsMap] = useState({});
   const [isFirstRender, setIsFirstRender] = useState(true); // Added state variable
-  const [streamingId, setStreamingId] = useState(null); // Added streamingId state variable
+  const [streamingStart, setStreamingStart] = useState(null); // Added streamingId state variable
   const { socketService, clientId } = useWebSocket();
 
 
@@ -198,8 +199,11 @@ const ElementsApp = ({ args, theme }) => {
   useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
       if (!payload?.component) {
-        setStreamingId(payload.streaming_id)
+        setStreamingStart(payload.time_stamp); // Set streaming start flag for new session
+        console.warn('New streaming session started:', payload.streaming_id);
         return;
+      } else {
+        console.log('Component update received:', payload);
       }
 
       setComponentsMap(prevMap => {
@@ -220,6 +224,34 @@ const ElementsApp = ({ args, theme }) => {
   // Add a separate effect to update the UI tree when the component map changes
   useEffect(() => {
     const tree = buildUiTree(componentsMap);
+    // Recursively filter nodes: only keep nodes with time_stamp >= streamingStart
+    const filterTree = (nodes) => {
+      return nodes.reduce((acc, node) => {
+        let newNode = { ...node };
+
+        // Recursively filter children first
+        if (node.children && node.children.length) {
+          newNode.children = filterTree(node.children);
+        }
+
+        // Check if component should be kept based on timestamp
+        if (node.time_stamp) {
+          // Keep node only if its timestamp is newer than or equal to streamingStart
+          if (node.time_stamp >= streamingStart) {
+            acc.push(newNode);
+          }
+        } else {
+          // Keep nodes without timestamps (likely static elements)
+          acc.push(newNode);
+        }
+
+        return acc;
+      }, []);
+    };
+
+    const filteredTree = filterTree(tree);
+    console.log('Filtered tree:', filteredTree);
+
     setUiTree(tree);
     console.log('UiTree updated with new component details:', tree);
   }, [componentsMap]);
@@ -236,10 +268,6 @@ const ElementsApp = ({ args, theme }) => {
   function renderElement(node) {
     const { module, type, props = {}, children = [], content } = node;
     if (module === "text" || type === "text") return <span>{props?.content || content || ""}</span>;
-
-    if (node.streaming_id != streamingId) {
-      console.log('streamingId not equal to node streamingId', node.streaming_id, streamingId);   
-    }
 
     validateElement(module, type);
     const LoadedElement = loaders[module](type);
