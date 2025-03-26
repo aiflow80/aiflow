@@ -4,6 +4,7 @@ import time
 import uuid
 from aiflow import logger
 import threading
+from datetime import datetime
 
 
 class EventBase:
@@ -47,7 +48,7 @@ class EventBase:
                     "status": "success",
                     "client_id": self.sender_id,
                     "session_id": self.session_id,
-                    "time_stamp": time.time(),
+                    "time_stamp": datetime.now().strftime("%H:%M:%S.%f")[:-3],
                 }
             }
 
@@ -56,7 +57,7 @@ class EventBase:
 
             if self.paired:
                 logger.info(
-                    f"Refresh session: {self.session_id} client: {self.sender_id}"
+                    f"Session refreshed: {datetime.now().strftime("%H:%M:%S.%f")[:-3]}"
                 )
 
                 if message.get("type") == "events":
@@ -106,6 +107,9 @@ class EventBase:
         if self._ws_client:
             self._processing = True
             try:
+                component_id = payload.get("payload", {}).get("component", {}).get("id", "N/A")
+                timestamp = payload.get("payload", {}).get("component", {}).get("time_stamp", "N/A")
+                print(f"Sending component_id: {component_id}, timestamp: {timestamp}")
                 self._ws_client.send_sync(payload)
             except Exception as e:
                 logger.error(f"Failed to send response synchronously: {e}")
@@ -140,7 +144,6 @@ class EventBase:
             "type": "component_update",
             "payload": {
                 "component": component_dict,
-                "timestamp": time.time()
             }
         }
         await self.send_response_async(payload)

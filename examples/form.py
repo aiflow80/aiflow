@@ -92,23 +92,23 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
             sx={"marginBottom": "20px"}
         )
 
-        # Select Box
-        mui.Typography("Select Department:", variant="subtitle1", sx={"marginTop": "20px", "marginBottom": "10px"})
-        with mui.Select(id="department-select", variant="outlined", fullWidth=True, sx={"marginBottom": "10px"}) as department_select:
-            for index, department in enumerate(["HR", "Engineering", "Marketing", "Sales"]):
-                mui.MenuItem(
-                    department, 
-                    value=department, 
-                    option=f"option-{index}",
-                    id=f"dept-{department.lower()}",
-                    sx={
-                        "padding": "12px 16px",
-                        "minHeight": "42px",
-                        "&:hover": {
-                            "backgroundColor": "rgba(0, 0, 0, 0.04)"
-                        }
-                    }
-                )
+        # # Select Box
+        # mui.Typography("Select Department:", variant="subtitle1", sx={"marginTop": "20px", "marginBottom": "10px"})
+        # with mui.Select(id="department-select", variant="outlined", fullWidth=True, sx={"marginBottom": "10px"}) as department_select:
+        #     for index, department in enumerate(["HR", "Engineering", "Marketing", "Sales"]):
+        #         mui.MenuItem(
+        #             department, 
+        #             value=department, 
+        #             option=f"option-{index}",
+        #             id=f"dept-{department.lower()}",
+        #             sx={
+        #                 "padding": "12px 16px",
+        #                 "minHeight": "42px",
+        #                 "&:hover": {
+        #                     "backgroundColor": "rgba(0, 0, 0, 0.04)"
+        #                 }
+        #             }
+        #         )
 
         # Debugging section to display events
         if events_store.get('events'):

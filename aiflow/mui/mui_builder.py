@@ -1,3 +1,4 @@
+from datetime import datetime
 import time
 import logging
 from typing import List, Dict, Any, Set, Optional, Union, Callable, TypeVar
@@ -410,11 +411,11 @@ class MUIBuilder:
                 prop_value._is_prop_component = True
                 prop_value._prop_key = key
 
-        component.time_stamp = time.time
+        component.time_stamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
         
         for key, prop_value in processed_props.items():
             if key == "control" and isinstance(prop_value, MUIComponent):
-                prop_value.time_stamp = time.time()
+                prop_value.time_stamp = datetime.now().strftime("%H:%M:%S.%f")[:-3]
 
         # Create component info
         component_info = {
@@ -445,7 +446,7 @@ class MUIBuilder:
         # Build component dict
         component_dict = component.to_dict()
         
-        component_dict["time_stamp"] = time.time()
+        component_dict["time_stamp"] = datetime.now().strftime("%H:%M:%S.%f")[:-3]
 
         if current_parent_id:
             component_dict["parentId"] = current_parent_id
