@@ -1,6 +1,7 @@
 import json
 import asyncio
 import threading
+import time
 from typing import Optional
 from tornado.websocket import websocket_connect, WebSocketClosedError
 from aiflow.logger import setup_logger
@@ -27,7 +28,16 @@ class WebSocketClient:
         self._ready = asyncio.Event()
         self._running = True
         self._message_handlers = {}
-        threading.Thread(target=self._start_asyncio_loop, name="WSClientInit", daemon=False).start()
+        self._init_thread = threading.Thread(target=self._start_asyncio_loop, name="WSClientInit", daemon=True)
+        self._init_thread.start()
+        
+        # Wait for the client to initialize before returning
+        start_time = time.time()
+        while not self._ready.is_set() and time.time() - start_time < 10:
+            time.sleep(0.1)
+        
+        if not self._ready.is_set():
+            logger.warning("WebSocketClient initialization may not be complete after timeout")
 
     def _start_asyncio_loop(self):
         loop = asyncio.new_event_loop()
@@ -41,7 +51,14 @@ class WebSocketClient:
             loop.close()
 
     async def _run_event_loop(self):
+        logger.info("WebSocketClient event loop started")
         while self._running:
+            if not self._connected.is_set():
+                try:
+                    await self.connect(force_reconnect=True)
+                except Exception as e:
+                    logger.error(f"Reconnection attempt failed: {e}")
+                    await asyncio.sleep(2)  # Prevent rapid reconnection attempts
             await asyncio.sleep(1)
 
     def register_handler(self, message_type: str, callback):
@@ -51,55 +68,72 @@ class WebSocketClient:
         try:
             if isinstance(message, str):
                 message = json.loads(message)
+            logger.debug(f"Processing message: {message}")
             await event_base.handle_message(message)
         except Exception as e:
             logger.error(f"Error processing message: {e}")
 
     async def _listen_messages(self):
+        logger.info("Starting message listener")
         while self._connected.is_set():
             try:
                 message = await self.client.read_message()
                 if message:
                     await self._handle_message(message)
                 else:
+                    logger.warning("Empty message received, connection may be closed")
                     break
             except Exception as e:
                 logger.error(f"Error reading message: {e}")
                 break
                 
         # Connection lost
+        logger.warning("Connection lost, clearing connection state")
         self._connected.clear()
         self._ready.clear()
-        await self.connect(force_reconnect=True)
+        
+        # Don't call connect here to avoid potential infinite loops
+        # Let the _run_event_loop handle reconnection
 
     async def connect(self, force_reconnect=False):
-        if force_reconnect:
-            await self.close()
-        if self._connected.is_set() and self.client and not self.client.close_code:
-            return
-
-        for attempt in range(config.websocket.retry_max_attempts):
-            try:
-                if attempt > 0:
-                    delay = min(config.websocket.retry_base_delay * (2 ** attempt), 
-                              config.websocket.retry_max_delay)
-                    await asyncio.sleep(delay)
-
-                self.client = await websocket_connect(
-                    f"ws://{config.websocket.host}:{config.websocket.port}/ws",
-                    connect_timeout=config.websocket.connection_timeout
-                )
-                
-                data = json.loads(await self.client.read_message())
-                self.client_id = data['client_id']
-                self._connected.set()
-                self._ready.set()
-                asyncio.create_task(self._listen_messages())
+        # Add lock to prevent multiple simultaneous connection attempts
+        connect_lock = asyncio.Lock()
+        async with connect_lock:
+            if force_reconnect:
+                await self.close()
+            
+            if self._connected.is_set() and self.client and not self.client.close_code:
                 return
-            except Exception as e:
-                logger.error(f"Connection attempt {attempt + 1} failed: {str(e)}")
-        
-        raise ConnectionError("Max retry attempts reached")
+
+            logger.info("Attempting to connect to WebSocket server")
+            for attempt in range(config.websocket.retry_max_attempts):
+                try:
+                    if attempt > 0:
+                        delay = min(config.websocket.retry_base_delay * (2 ** attempt), 
+                                config.websocket.retry_max_delay)
+                        logger.info(f"Retrying connection in {delay} seconds (attempt {attempt+1})")
+                        await asyncio.sleep(delay)
+
+                    logger.info(f"Connecting to ws://{config.websocket.host}:{config.websocket.port}/ws")
+                    self.client = await websocket_connect(
+                        f"ws://{config.websocket.host}:{config.websocket.port}/ws",
+                        connect_timeout=config.websocket.connection_timeout
+                    )
+                    
+                    data = json.loads(await self.client.read_message())
+                    self.client_id = data['client_id']
+                    logger.info(f"Connected with client_id: {self.client_id}")
+                    
+                    self._connected.set()
+                    self._ready.set()
+                    
+                    # Start message listener in a new task
+                    asyncio.create_task(self._listen_messages())
+                    return
+                except Exception as e:
+                    logger.error(f"Connection attempt {attempt + 1} failed: {str(e)}")
+            
+            raise ConnectionError("Max retry attempts reached")
 
     async def wait_for_ready(self, timeout=10):
         await asyncio.wait_for(self._ready.wait(), timeout=timeout)
@@ -155,5 +189,3 @@ class WebSocketClient:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
-client = WebSocketClient()
-event_base.set_ws_client(client)

@@ -6,7 +6,8 @@ import threading
 import time
 import signal
 from typing import Optional, Dict
-from aiflow.network.ws_client import client as ws_client
+from aiflow.events import event_base
+from aiflow.network.ws_client import WebSocketClient
 from aiflow.logger import setup_logger
 from aiflow.config import config
 
@@ -19,6 +20,7 @@ class Launcher:
     _thread: Optional[threading.Thread] = None
     _lock = threading.Lock()
     _loop_ready = threading.Event()
+    _main_thread_exit = threading.Event()  # New event to control main thread exit
 
     # Singleton implementation
     def __new__(cls):
@@ -49,8 +51,22 @@ class Launcher:
         # Initialize client and launch browser
         self._client_ready = threading.Event()
         asyncio.run_coroutine_threadsafe(self._init_client(), self._loop)
-        if not self._client_ready.wait(timeout=10):
+        if not self._client_ready.wait(timeout=30):
             raise RuntimeError("Client initialization timeout")
+
+        # Start a non-daemon thread that will keep the program alive
+        self._start_keep_alive_thread()
+
+    def _start_keep_alive_thread(self):
+        """Start a thread that keeps the program alive until explicitly stopped"""
+        def keep_alive():
+            logger.info("Keep-alive thread started - application will remain running")
+            # Wait until the exit event is set by the exit handler
+            self._main_thread_exit.wait()
+            logger.info("Keep-alive thread ending - allowing application to exit")
+            
+        thread = threading.Thread(target=keep_alive, name="KeepAliveThread", daemon=False)
+        thread.start()
         
     @classmethod
     def start(cls):
@@ -117,6 +133,9 @@ class Launcher:
 
     async def _init_client(self):
         try:
+            ws_client = WebSocketClient()
+            event_base.set_ws_client(ws_client)
+
             await ws_client.connect()
             await ws_client.wait_for_ready()
             logger.info("WebSocket client connected")
@@ -130,7 +149,7 @@ class Launcher:
             
             # Keep running
             while self.running:
-                await asyncio.sleep(1)
+                await asyncio.sleep(3)
         except Exception as e:
             logger.error(f"Client error: {e}")
             return False
@@ -177,6 +196,9 @@ class Launcher:
                     process.terminate()
             except Exception as e:
                 logger.error(f"Error terminating {name}: {e}")
+        
+        # Signal the keep-alive thread to exit
+        self._main_thread_exit.set()
         
         # Exit with a slight delay to allow cleanup
         threading.Thread(target=lambda: (time.sleep(0.5), os._exit(0))).start()
