@@ -57,7 +57,7 @@ class EventBase:
 
             if self.paired:
                 logger.info(
-                    f"Session refreshed: {datetime.now().strftime("%H:%M:%S.%f")[:-3]}"
+                    f"Session refreshed: {datetime.now().strftime('%H:%M:%S.%f')[:-3]}"
                 )
 
                 if message.get("type") == "events":
