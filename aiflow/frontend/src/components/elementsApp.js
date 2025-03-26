@@ -251,7 +251,15 @@ const ElementsApp = ({ args, theme }) => {
   function buildUiTree(map) {
     console.log('streamingStart:', streamingStart);
     const lookup = {};
-    Object.values(map).forEach(comp => lookup[comp.id] = { ...comp, children: [...(comp.children || [])] });
+    Object.values(map).forEach(comp => {
+      // Add shouldNotRender flag based on timestamp comparison
+      const shouldNotRender = streamingStart && comp.time_stamp && comp.time_stamp < streamingStart;
+      lookup[comp.id] = { 
+        ...comp, 
+        children: [...(comp.children || [])],
+        shouldNotRender
+      };
+    });
     Object.values(lookup).forEach(comp => {
       if (comp.parentId && lookup[comp.parentId]) lookup[comp.parentId].children.push(comp);
     });
