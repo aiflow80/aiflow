@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { jsx } from "@emotion/react";
 import Box from "@mui/material/Box";
@@ -136,39 +136,25 @@ const ElementsApp = ({ args, theme }) => {
     window.clientId = clientId;
   }, [socketService, clientId]);
 
-  // Regular functions instead of memoized callbacks
-  const sendEvent = (data) => {
+  // Memoize send event function
+  const sendEvent = useCallback((data) => {
     send(data, socketService, clientId);
-  };
-
-  const handleFileEventWithContext = (event, key) => {
+  }, [socketService, clientId]);
+  
+  // Memoize file event handler
+  const handleFileEventWithContext = useCallback((event, key) => {
     handleFileEvent(event, key, socketService, clientId);
-  };
-
-  const handleFormEvent = (eventData) => {
+  }, [socketService, clientId]);
+  
+  // Memoize form event handler
+  const handleFormEvent = useCallback((eventData) => {
     setFormEvents(prev => ({
       ...prev, [eventData.key]: { id: eventData.key, value: eventData.value }
     }));
-  };
+  }, []);
 
-  const handleEvent = (event, key, eventType, props = {}) => {
-    try {
-      let value;
-      const targetType = event?.target?.type;
-      if (targetType === 'checkbox') value = event.target.checked;
-      else if (targetType === 'radio' || targetType === 'button') value = targetType === 'button' ? 'clicked' : event.target.value;
-      else value = event?.target?.value;
-
-      if (props.type === 'submit') sendEvent({ key, type: props.type, value, formEvents });
-      else if (value !== undefined && value !== null && value !== '')
-        handleFormEvent({ key, value });
-    } catch (error) {
-      console.error('Event handling error:', error);
-      sendEvent(createEventPayload(key, 'error', error.message));
-    }
-  };
-
-  const createEventHandlers = (id, type, props) => {
+  // Memoize event handler creator
+  const createEventHandlers = useCallback((id, type, props) => {
     if (!id) return {};
     const handlers = {};
 
@@ -201,81 +187,71 @@ const ElementsApp = ({ args, theme }) => {
       handlers.onChange = (e) => handleEvent(e, id, EVENT_TYPES.CHANGE, props);
     }
     return handlers;
-  };
+  }, [sendEvent, handleFormEvent, handleFileEventWithContext]);
+
+  // Memoize the event handler
+  const handleEvent = useCallback((event, key, eventType, props = {}) => {
+    try {
+      let value;
+      const targetType = event?.target?.type;
+      if (targetType === 'checkbox') value = event.target.checked;
+      else if (targetType === 'radio' || targetType === 'button') value = targetType === 'button' ? 'clicked' : event.target.value;
+      else value = event?.target?.value;
+
+      if (props.type === 'submit') sendEvent({ key, type: props.type, value, formEvents });
+      else if (value !== undefined && value !== null && value !== '')
+        handleFormEvent({ key, value });
+    } catch (error) {
+      console.error('Event handling error:', error);
+      sendEvent(createEventPayload(key, 'error', error.message));
+    }
+  }, [sendEvent, handleFormEvent, formEvents]);
 
   useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
       if (!payload?.component) {
         setStreamingStart(payload.time_stamp); // Set streaming start flag for new session
         console.warn('New streaming session started:', payload.time_stamp);
-        setComponentsMap({});
         return;
       } else {
-
-        setComponentsMap(prevMap => {
-          // Create a new map with all existing components
-          const newMap = { ...prevMap };
-
-          // Add or update the component from the payload
-          if (prevMap[payload.component.id]) {
-            // If component exists, update it while ensuring time_stamp is updated
-            console.log(payload.component.time_stamp)
-            newMap[payload.component.id] = {
-              ...prevMap[payload.component.id],
-              ...payload.component,
-              time_stamp: payload.component.time_stamp // Explicitly update timestamp
-            };
-          } else {
-            // If it's a new component, add it to the map
-            newMap[payload.component.id] = {
-              ...payload.component
-            };
-          }
-
-          return newMap;
-        });
+        console.log('Component update received:', payload);
       }
+
+      setComponentsMap(prevMap => {
+        // Create a new map with all existing components
+        const newMap = { ...prevMap };
+
+        // Add or update the component from the payload
+        newMap[payload.component.id] = {
+          ...payload.component,
+        };
+
+        return newMap;
+      });
     });
     return unsub;
   }, [socketService]);
 
-  // Add a separate effect to update the UI tree when the component map changes
+  // Update UI tree when component map changes
   useEffect(() => {
-    // Check if componentsMap has items in it before rebuilding UI tree
-    if (Object.keys(componentsMap).length > 0) {
-      console.log('ComponentsMap updated, rebuilding UI tree');
-      // Direct update instead of using memoized tree
-      const newTree = buildUiTree(componentsMap);
-      setUiTree(newTree);
-      console.log('UiTree updated with new component details:', newTree);
-    } else {
-      console.log('ComponentsMap is empty, skipping UI tree update');
-    }
+    console.log('ComponentsMap updated, rebuilding UI tree');
+    const newTree = buildUiTree(componentsMap);
+    setUiTree(newTree);
+    console.log('UiTree updated with new component details:', newTree);
   }, [componentsMap]);
 
   function buildUiTree(map) {
+    console.log('streamingStart:', streamingStart);
     const lookup = {};
-    Object.values(map).forEach(comp => {
-      // Add shouldNotRender flag based on timestamp comparison
-
-      const shouldNotRender = streamingStart && comp.time_stamp && comp.time_stamp < streamingStart;
-
-      if (shouldNotRender) {
-      }
-
-      lookup[comp.id] = {
-        ...comp,
-        children: [...(comp.children || [])],
-        shouldNotRender
-      };
-    });
+    Object.values(map).forEach(comp => lookup[comp.id] = { ...comp, children: [...(comp.children || [])] });
     Object.values(lookup).forEach(comp => {
       if (comp.parentId && lookup[comp.parentId]) lookup[comp.parentId].children.push(comp);
     });
     return Object.values(lookup).filter(c => !c.parentId);
   }
 
-  const renderElement = (node) => {
+  // Regular renderElement function (no memoization)
+  function renderElement(node) {
     const { module, type, props = {}, children = [], content } = node;
     if (module === "text" || type === "text") return <span>{props?.content || content || ""}</span>;
 
@@ -305,13 +281,21 @@ const ElementsApp = ({ args, theme }) => {
       } else Object.assign(finalProps, eventHandlers);
     }
     return jsx(LoadedElement, finalProps, ...renderedChildren);
-  };
+  }
 
-  // Render the elements directly without memoization
-  const elements = uiTree.map((node, index) => {
-    // Check if node should not render
+  // Create a memoized component for rendering individual elements
+  const MemoizedElement = React.memo(({ node, index }) => {
     return <React.Fragment key={node.id || index}>{renderElement(node)}</React.Fragment>;
+  }, (prevProps, nextProps) => {
+    // Custom comparison function - only re-render if the node ID or content changed
+    return prevProps.node.id === nextProps.node.id && 
+           JSON.stringify(prevProps.node) === JSON.stringify(nextProps.node);
   });
+
+  // Render the elements using memoized components
+  const elements = uiTree.map((node, index) => (
+    <MemoizedElement key={node.id || index} node={node} index={index} />
+  ));
 
   return (
     <ElementsTheme theme={theme}>
@@ -331,5 +315,4 @@ const ElementsApp = ({ args, theme }) => {
   );
 };
 
-// Export without React.memo
-export default ElementsApp;
+export default React.memo(ElementsApp);
