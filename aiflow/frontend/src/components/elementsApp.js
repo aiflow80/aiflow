@@ -213,19 +213,22 @@ const ElementsApp = ({ args, theme }) => {
         setStreamingStart(payload.time_stamp); // Set streaming start flag for new session
         console.warn('New streaming session started:', payload.time_stamp);
         return;
-      } else {
-        console.log('Component update received:', payload);
-      }
+      } 
 
       setComponentsMap(prevMap => {
-        // Create a new map with all existing components
+        // Make a copy of the previous component map
         const newMap = { ...prevMap };
-
-        // Add or update the component from the payload
-        newMap[payload.component.id] = {
-          ...payload.component,
+        
+        // Get component information from payload
+        const componentToUpdate = payload.component;
+        const componentId = componentToUpdate.id;
+        
+        // Update the component in our map
+        newMap[componentId] = {
+          ...componentToUpdate
         };
-
+        
+        console.log('payload:', payload.component.time_stamp, 'new map:', newMap);
         return newMap;
       });
     });
@@ -234,14 +237,13 @@ const ElementsApp = ({ args, theme }) => {
 
   // Update UI tree when component map changes
   useEffect(() => {
-    console.log('ComponentsMap updated, rebuilding UI tree');
-    const newTree = buildUiTree(componentsMap);
-    setUiTree(newTree);
-    console.log('UiTree updated with new component details:', newTree);
+    if (Object.keys(componentsMap).length > 0) {
+      const newTree = buildUiTree(componentsMap);
+      setUiTree(newTree);
+    } 
   }, [componentsMap]);
 
   function buildUiTree(map) {
-    console.log('streamingStart:', streamingStart);
     const lookup = {};
     Object.values(map).forEach(comp => lookup[comp.id] = { ...comp, children: [...(comp.children || [])] });
     Object.values(lookup).forEach(comp => {
@@ -249,6 +251,11 @@ const ElementsApp = ({ args, theme }) => {
     });
     return Object.values(lookup).filter(c => !c.parentId);
   }
+
+  // Update UI tree when component map changes
+  useEffect(() => {
+    console.log('Need to update uitree :', uiTree);
+  }, [uiTree]);
 
   // Regular renderElement function (no memoization)
   function renderElement(node) {

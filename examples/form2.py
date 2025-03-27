@@ -12,7 +12,6 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
     # Form title using Typography
     mui.Typography("User Registration Form", variant="h4", gutterBottom=True)
 
-
 # # Form title using Typography
 with mui.RadioGroup(defaultValue="female", id="gender", sx={"marginBottom": "15px"}):
     mui.FormControlLabel(value="female", control=mui.Radio(), label="Female")
