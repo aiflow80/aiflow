@@ -41,6 +41,7 @@ class WebSocketClient:
 
     def _start_asyncio_loop(self):
         loop = asyncio.new_event_loop()
+        self._loop = loop  # store reference to the loop for shutdown control
         asyncio.set_event_loop(loop)
         try:
             loop.run_until_complete(self.connect())
@@ -80,19 +81,15 @@ class WebSocketClient:
                 if message:
                     await self._handle_message(message)
                 else:
-                    logger.warning("Empty message received, connection may be closed")
+                    logger.warning("Empty message received, connection closed by server")
                     break
             except Exception as e:
                 logger.error(f"Error reading message: {e}")
                 break
                 
-        # Connection lost
-        logger.warning("Connection lost, clearing connection state")
-        self._connected.clear()
-        self._ready.clear()
-        
-        # Don't call connect here to avoid potential infinite loops
-        # Let the _run_event_loop handle reconnection
+        # Connection lost: shut down the client properly
+        logger.warning("Connection lost, shutting down client")
+        await self.close()
 
     async def connect(self, force_reconnect=False):
         # Add lock to prevent multiple simultaneous connection attempts
@@ -180,6 +177,9 @@ class WebSocketClient:
             self.client.close()
             self.client = None
             self.client_id = None
+        # Signal the loop to stop if it's running
+        if hasattr(self, "_loop") and self._loop.is_running():
+            self._loop.call_soon_threadsafe(self._loop.stop)
 
     async def __aenter__(self):
         await self.connect()
