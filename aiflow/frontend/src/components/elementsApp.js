@@ -121,13 +121,28 @@ const preprocessJsonString = (jsonString) => {
   }
 };
 
+// NEW: Function to compare two dictionaries and log differences.
+const compareComponentsMaps = (map1, map2) => {
+  const allKeys = new Set([...Object.keys(map1), ...Object.keys(map2)]);
+  allKeys.forEach(key => {
+    const val1 = map1[key];
+    const val2 = map2[key];
+    if (JSON.stringify(val1) !== JSON.stringify(val2)) {
+      console.log(`Difference for key: ${key}`);
+      console.log("componentsMap value:", val1);
+      console.log("previousComponentsMap value:", val2);
+    }
+  });
+}
+
 const ElementsApp = ({ args, theme }) => {
   const [uiTree, setUiTree] = useState([]);
   const [filteredUiTree, setFilteredUiTree] = useState([]);
   const [formEvents, setFormEvents] = useState({});
   const [componentsMap, setComponentsMap] = useState({});
-  const [isFirstRender, setIsFirstRender] = useState(true); // Added state variable
+  const [previousComponentsMap, setPreviousComponentsMap] = useState({}); // Added state for previous components
   const [streamingStart, setStreamingStart] = useState(null); // Added streamingId state variable
+  const [streamingEnd, setStreamingEnd] = useState(null); // New streamingEnd state variable
   const { socketService, clientId } = useWebSocket();
 
 
@@ -140,12 +155,12 @@ const ElementsApp = ({ args, theme }) => {
   const sendEvent = useCallback((data) => {
     send(data, socketService, clientId);
   }, [socketService, clientId]);
-  
+
   // Memoize file event handler
   const handleFileEventWithContext = useCallback((event, key) => {
     handleFileEvent(event, key, socketService, clientId);
   }, [socketService, clientId]);
-  
+
   // Memoize form event handler
   const handleFormEvent = useCallback((eventData) => {
     setFormEvents(prev => ({
@@ -210,25 +225,29 @@ const ElementsApp = ({ args, theme }) => {
   useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
       if (!payload?.component) {
-        setStreamingStart(payload.time_stamp); // Set streaming start flag for new session
-        console.warn('New streaming session started:', payload.time_stamp);
+        if (payload.message === 'stream_start') {
+          setStreamingStart(payload.time_stamp); // Set streaming start flag for new session
+          console.warn('New streaming session started:', payload.time_stamp);
+        } else if (payload.message === 'stream_end') {
+          setStreamingEnd(payload.time_stamp); // Set streaming end flag for session end
+          console.warn('Streaming session ended:', payload.time_stamp);
+        }
         return;
-      } 
+      }
 
       setComponentsMap(prevMap => {
         // Make a copy of the previous component map
         const newMap = { ...prevMap };
-        
+
         // Get component information from payload
         const componentToUpdate = payload.component;
         const componentId = componentToUpdate.id;
-        
+
         // Update the component in our map
         newMap[componentId] = {
           ...componentToUpdate
         };
-        
-        console.log('payload:', payload.component.time_stamp, 'new map:', newMap);
+
         return newMap;
       });
     });
@@ -237,10 +256,38 @@ const ElementsApp = ({ args, theme }) => {
 
   // Update UI tree when component map changes
   useEffect(() => {
+    if (Object.keys(componentsMap).length > 0 && streamingStart) {
+      const newMap = { ...componentsMap };
+      Object.keys(newMap).forEach(key => {
+        if (newMap[key].time_stamp && newMap[key].time_stamp < streamingStart) {
+          console.log("Removing component:", newMap[key]);
+          delete newMap[key];
+        }
+      });
+      setComponentsMap(newMap);
+    }
+  }, [streamingEnd]);
+
+  // Update UI tree when component map changes
+  useEffect(() => {
+    if (Object.keys(componentsMap).length > 0) {
+      if (streamingStart) {
+        Object.values(componentsMap).forEach(comp => {
+          // Log components whose time_stamp is less than streamingStart
+          if (comp.time_stamp && comp.time_stamp < streamingStart) {
+            console.log("Component logged:", comp);
+          }
+        });
+      }
+    }
+  }, [streamingEnd]);
+
+  // Update UI tree when component map changes
+  useEffect(() => {
     if (Object.keys(componentsMap).length > 0) {
       const newTree = buildUiTree(componentsMap);
       setUiTree(newTree);
-    } 
+    }
   }, [componentsMap]);
 
   function buildUiTree(map) {
@@ -295,8 +342,8 @@ const ElementsApp = ({ args, theme }) => {
     return <React.Fragment key={node.id || index}>{renderElement(node)}</React.Fragment>;
   }, (prevProps, nextProps) => {
     // Custom comparison function - only re-render if the node ID or content changed
-    return prevProps.node.id === nextProps.node.id && 
-           JSON.stringify(prevProps.node) === JSON.stringify(nextProps.node);
+    return prevProps.node.id === nextProps.node.id &&
+      JSON.stringify(prevProps.node) === JSON.stringify(nextProps.node);
   });
 
   // Render the elements using memoized components

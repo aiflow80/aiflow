@@ -46,6 +46,7 @@ class EventBase:
             response = {
                 "type": "paired",
                 "payload": {
+                    "message": "stream_start",
                     "client_id": self.sender_id,
                     "session_id": self.session_id,
                     "time_stamp": datetime.now().strftime("%H:%M:%S.%f")[:-3],
@@ -95,8 +96,9 @@ class EventBase:
                 run_module(module_path, method="runpy")
 
                 response = {
-                    "type": "finish",
+                    "type": "paired",
                     "payload": {
+                        "message": "stream_end",
                         "client_id": self.sender_id,
                         "session_id": self.session_id,
                         "time_stamp": datetime.now().strftime("%H:%M:%S.%f")[:-3],
@@ -173,7 +175,6 @@ class EventBase:
         from aiflow.mui import mui
 
         mui.reset()
-        logger.info("MUI builder state has been reset")
 
 
 event_base = EventBase()
