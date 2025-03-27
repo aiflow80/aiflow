@@ -3,7 +3,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from aiflow import mui
-from aiflow.events import events_store  # Direct import of the events dictionary
+from aiflow.events import events_store, events  # Direct import of the events dictionary
 
 skills_options = [
     "Python", "JavaScript", "React", "Java", "C++", "SQL", 
@@ -24,8 +24,12 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
     # Profile Avatar
     mui.Avatar("A", sx={"width": 80, "height": 80, "marginBottom": "20px"})
 
+    first_name = ""
+    if events.get("terms-switch"):
+        first_name = "Tom Jose"
+
     # Input fields for registration
-    mui.TextField(id="first-name", label="First Name", variant="outlined", fullWidth=True, sx={"marginBottom": "10px"})
+    mui.TextField(id="first-name", label="First Name", value=first_name, variant="outlined", fullWidth=True, sx={"marginBottom": "10px"})
     mui.TextField(id="last-name", label="Last Name", variant="outlined", fullWidth=True, sx={"marginBottom": "10px"})
 
     # Role selection using Chips
@@ -111,10 +115,10 @@ with mui.Card(variant="outlined", sx={"padding": "16px", "maxWidth": "100%", "ma
         #         )
 
         # Debugging section to display events
-        if events_store.get('events'):
+        if events:
             with mui.Box(sx={"marginTop": "40px", "padding": "16px",  "borderRadius": "4px"}):
                 mui.Typography("Event Store Contents:", variant="h6", gutterBottom=True)
-                mui.Typography(str(events_store), variant="body2", sx={"whiteSpace": "pre-wrap", "fontFamily": "monospace"})
+                mui.Typography(str(events), variant="body2", sx={"whiteSpace": "pre-wrap", "fontFamily": "monospace"})
 
 
     mui.Button("Submit", id="submit-button", type="submit", variant="contained", color="primary", sx={"marginTop": "20px", "marginBottom": "10px", "float": "right"})

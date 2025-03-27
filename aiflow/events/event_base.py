@@ -64,7 +64,7 @@ class EventBase:
                 if message.get("type") == "events":
                     self.events_store["events"] = message.get("payload")
                     # Store event values by ID for easy retrieval
-                    form_events = self.events_store.get("formEvents", [])
+                    form_events = self.events_store.get('events').get("formEvents", [])
                     for event_id in form_events:
                         event_data = form_events[event_id]
                         if "value" in event_data:
