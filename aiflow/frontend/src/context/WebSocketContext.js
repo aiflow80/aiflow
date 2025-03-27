@@ -85,7 +85,7 @@ export const WebSocketProvider = ({ children }) => {
             }
 
             // Handle direct message type events
-            if (data.type === 'finish') {
+            if (data.type === 'paired') {
               socket.dispatchEvent(new CustomEvent('component_update', {
                 detail: data.payload
               }));
