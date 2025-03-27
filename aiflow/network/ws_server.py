@@ -191,13 +191,22 @@ class WebSocketServer:
 
     async def start(self, port=None):
         app = self.create_app()
-        self.server = app.listen(
-            port or DEFAULT_CONFIG['websocket']['port'],
-            address="0.0.0.0",
-            max_buffer_size=10485760,
-            max_body_size=10485760
-        )
-        logger.info(f"WebSocket server started at ws://0.0.0.0:{port or DEFAULT_CONFIG['websocket']['port']}/ws")
+        try:
+            # Attempt to bind server to port.
+            self.server = app.listen(
+                port or DEFAULT_CONFIG['websocket']['port'],
+                address="0.0.0.0",
+                max_buffer_size=10485760,
+                max_body_size=10485760
+            )
+            logger.info(f"WebSocket server started at ws://0.0.0.0:{port or DEFAULT_CONFIG['websocket']['port']}/ws")
+        except OSError as e:
+            if "Address already in use" in str(e):
+                logger.error(f"Port busy error: {e}")
+                # Optionally perform graceful shutdown or exit
+                return
+            else:
+                raise
 
     async def stop(self):
         if self.server:
