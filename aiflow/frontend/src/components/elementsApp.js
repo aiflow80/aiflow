@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo, useCallback } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { ErrorBoundary } from "react-error-boundary";
 import { jsx } from "@emotion/react";
 import Box from "@mui/material/Box";
@@ -121,55 +121,46 @@ const preprocessJsonString = (jsonString) => {
   }
 };
 
-// NEW: Function to compare two dictionaries and log differences.
-const compareComponentsMaps = (map1, map2) => {
-  const allKeys = new Set([...Object.keys(map1), ...Object.keys(map2)]);
-  allKeys.forEach(key => {
-    const val1 = map1[key];
-    const val2 = map2[key];
-    if (JSON.stringify(val1) !== JSON.stringify(val2)) {
-      console.log(`Difference for key: ${key}`);
-      console.log("componentsMap value:", val1);
-      console.log("previousComponentsMap value:", val2);
-    }
-  });
-}
-
 const ElementsApp = ({ args, theme }) => {
   const [uiTree, setUiTree] = useState([]);
-  const [filteredUiTree, setFilteredUiTree] = useState([]);
   const [formEvents, setFormEvents] = useState({});
   const [componentsMap, setComponentsMap] = useState({});
-  const [previousComponentsMap, setPreviousComponentsMap] = useState({}); // Added state for previous components
-  const [streamingStart, setStreamingStart] = useState(null); // Added streamingId state variable
-  const [streamingEnd, setStreamingEnd] = useState(null); // New streamingEnd state variable
+  const [streamingStart, setStreamingStart] = useState(null);
+  const [streamingEnd, setStreamingEnd] = useState(null);
+  const [previousComponentsMap, setPreviousComponentsMap] = useState({});
   const { socketService, clientId } = useWebSocket();
-
 
   useEffect(() => {
     window.socketService = socketService;
     window.clientId = clientId;
   }, [socketService, clientId]);
 
-  // Memoize send event function
-  const sendEvent = useCallback((data) => {
-    send(data, socketService, clientId);
-  }, [socketService, clientId]);
-
-  // Memoize file event handler
-  const handleFileEventWithContext = useCallback((event, key) => {
-    handleFileEvent(event, key, socketService, clientId);
-  }, [socketService, clientId]);
-
-  // Memoize form event handler
-  const handleFormEvent = useCallback((eventData) => {
+  function sendEvent(data) { send(data, socketService, clientId); }
+  function handleFileEventWithContext(event, key) { handleFileEvent(event, key, socketService, clientId); }
+  function handleFormEvent(eventData) {
     setFormEvents(prev => ({
       ...prev, [eventData.key]: { id: eventData.key, value: eventData.value }
     }));
-  }, []);
+  }
 
-  // Memoize event handler creator
-  const createEventHandlers = useCallback((id, type, props) => {
+  function handleEvent(event, key, eventType, props = {}) {
+    try {
+      let value;
+      const targetType = event?.target?.type;
+      if (targetType === 'checkbox') value = event.target.checked;
+      else if (targetType === 'radio' || targetType === 'button') value = targetType === 'button' ? 'clicked' : event.target.value;
+      else value = event?.target?.value;
+
+      if (props.type === 'submit') sendEvent({ key, type: props.type, value, formEvents });
+      else if (value !== undefined && value !== null && value !== '')
+        handleFormEvent({ key, value });
+    } catch (error) {
+      console.error('Event handling error:', error);
+      sendEvent(createEventPayload(key, 'error', error.message));
+    }
+  }
+
+  function createEventHandlers(id, type, props) {
     if (!id) return {};
     const handlers = {};
 
@@ -202,109 +193,8 @@ const ElementsApp = ({ args, theme }) => {
       handlers.onChange = (e) => handleEvent(e, id, EVENT_TYPES.CHANGE, props);
     }
     return handlers;
-  }, [sendEvent, handleFormEvent, handleFileEventWithContext]);
-
-  // Memoize the event handler
-  const handleEvent = useCallback((event, key, eventType, props = {}) => {
-    try {
-      let value;
-      const targetType = event?.target?.type;
-      if (targetType === 'checkbox') value = event.target.checked;
-      else if (targetType === 'radio' || targetType === 'button') value = targetType === 'button' ? 'clicked' : event.target.value;
-      else value = event?.target?.value;
-
-      if (props.type === 'submit') sendEvent({ key, type: props.type, value, formEvents });
-      else if (value !== undefined && value !== null && value !== '')
-        handleFormEvent({ key, value });
-    } catch (error) {
-      console.error('Event handling error:', error);
-      sendEvent(createEventPayload(key, 'error', error.message));
-    }
-  }, [sendEvent, handleFormEvent, formEvents]);
-
-  useEffect(() => {
-    const unsub = socketService.addListener('component_update', (payload) => {
-      if (!payload?.component) {
-        if (payload.message === 'stream_start') {
-          setStreamingStart(payload.time_stamp); // Set streaming start flag for new session
-          console.warn('New streaming session started:', payload.time_stamp);
-        } else if (payload.message === 'stream_end') {
-          setStreamingEnd(payload.time_stamp); // Set streaming end flag for session end
-          console.warn('Streaming session ended:', payload.time_stamp);
-        }
-        return;
-      }
-
-      setComponentsMap(prevMap => {
-        // Make a copy of the previous component map
-        const newMap = { ...prevMap };
-
-        // Get component information from payload
-        const componentToUpdate = payload.component;
-        const componentId = componentToUpdate.id;
-
-        // Update the component in our map
-        newMap[componentId] = {
-          ...componentToUpdate
-        };
-
-        return newMap;
-      });
-    });
-    return unsub;
-  }, [socketService]);
-
-  // Update UI tree when component map changes
-  useEffect(() => {
-    if (Object.keys(componentsMap).length > 0 && streamingStart) {
-      const newMap = { ...componentsMap };
-      Object.keys(newMap).forEach(key => {
-        if (newMap[key].time_stamp && newMap[key].time_stamp < streamingStart) {
-          console.log("Removing component:", newMap[key]);
-          delete newMap[key];
-        }
-      });
-      setComponentsMap(newMap);
-    }
-  }, [streamingEnd]);
-
-  // Update UI tree when component map changes
-  useEffect(() => {
-    if (Object.keys(componentsMap).length > 0) {
-      if (streamingStart) {
-        Object.values(componentsMap).forEach(comp => {
-          // Log components whose time_stamp is less than streamingStart
-          if (comp.time_stamp && comp.time_stamp < streamingStart) {
-            console.log("Component logged:", comp);
-          }
-        });
-      }
-    }
-  }, [streamingEnd]);
-
-  // Update UI tree when component map changes
-  useEffect(() => {
-    if (Object.keys(componentsMap).length > 0) {
-      const newTree = buildUiTree(componentsMap);
-      setUiTree(newTree);
-    }
-  }, [componentsMap]);
-
-  function buildUiTree(map) {
-    const lookup = {};
-    Object.values(map).forEach(comp => lookup[comp.id] = { ...comp, children: [...(comp.children || [])] });
-    Object.values(lookup).forEach(comp => {
-      if (comp.parentId && lookup[comp.parentId]) lookup[comp.parentId].children.push(comp);
-    });
-    return Object.values(lookup).filter(c => !c.parentId);
   }
 
-  // Update UI tree when component map changes
-  useEffect(() => {
-    console.log('Need to update uitree :', uiTree);
-  }, [uiTree]);
-
-  // Regular renderElement function (no memoization)
   function renderElement(node) {
     const { module, type, props = {}, children = [], content } = node;
     if (module === "text" || type === "text") return <span>{props?.content || content || ""}</span>;
@@ -337,18 +227,77 @@ const ElementsApp = ({ args, theme }) => {
     return jsx(LoadedElement, finalProps, ...renderedChildren);
   }
 
-  // Create a memoized component for rendering individual elements
-  const MemoizedElement = React.memo(({ node, index }) => {
-    return <React.Fragment key={node.id || index}>{renderElement(node)}</React.Fragment>;
-  }, (prevProps, nextProps) => {
-    // Custom comparison function - only re-render if the node ID or content changed
-    return prevProps.node.id === nextProps.node.id &&
-      JSON.stringify(prevProps.node) === JSON.stringify(nextProps.node);
-  });
+  useEffect(() => {
+    const unsub = socketService.addListener('component_update', (payload) => {
+      if (!payload?.component) {
+        if (!payload?.component) {
+          if (payload.message === 'stream_start') {
+            setStreamingStart(payload.time_stamp); // Set streaming start flag for new session
+            console.warn('New streaming session started:', payload.time_stamp);
+          } else if (payload.message === 'stream_end') {
+            setStreamingEnd(payload.time_stamp); // Set streaming end flag for session end
+            console.warn('Streaming session ended:', payload.time_stamp);
+          }
+        }
+        return;
+      }
 
-  // Render the elements using memoized components
+      setComponentsMap(prevMap => {
+        // Create a new map with all existing components
+        const newMap = { ...prevMap };
+
+        // Add or update the component from the payload
+        newMap[payload.component.id] = {
+          ...payload.component,
+          timestamp: payload.timestamp,
+          streamingId: payload.streaming_id
+        };
+
+        return newMap;
+      });
+    });
+    return unsub;
+  }, [socketService]);
+
+  // Update UI tree when component map changes
+  useEffect(() => {
+    if (Object.keys(componentsMap).length > 0 && streamingStart) {
+      setPreviousComponentsMap(componentsMap);
+    }
+  }, [streamingStart]);
+
+  // Update UI tree when component map changes
+  useEffect(() => {
+    if (Object.keys(componentsMap).length > 0 && streamingStart) {
+      const newMap = { ...componentsMap };
+      Object.keys(newMap).forEach(key => {
+        if (newMap[key].time_stamp && newMap[key].time_stamp < streamingStart) {
+          console.log("Removing component:", newMap[key]);
+          delete newMap[key];
+        }
+      });
+      setComponentsMap(newMap);
+    }
+  }, [streamingEnd]);
+
+  // Add a separate effect to update the UI tree when the component map changes
+  useEffect(() => {
+    const tree = buildUiTree(componentsMap);
+    setUiTree(tree);
+    console.log('UiTree updated with new component details:', tree);
+  }, [componentsMap]);
+
+  function buildUiTree(map) {
+    const lookup = {};
+    Object.values(map).forEach(comp => lookup[comp.id] = { ...comp, children: [...(comp.children || [])] });
+    Object.values(lookup).forEach(comp => {
+      if (comp.parentId && lookup[comp.parentId]) lookup[comp.parentId].children.push(comp);
+    });
+    return Object.values(lookup).filter(c => !c.parentId);
+  }
+
   const elements = uiTree.map((node, index) => (
-    <MemoizedElement key={node.id || index} node={node} index={index} />
+    <React.Fragment key={node.id || index}>{renderElement(node)}</React.Fragment>
   ));
 
   return (
@@ -369,4 +318,4 @@ const ElementsApp = ({ args, theme }) => {
   );
 };
 
-export default React.memo(ElementsApp);
+export default ElementsApp;
