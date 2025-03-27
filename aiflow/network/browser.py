@@ -20,7 +20,7 @@ def main():
             
         client_data = sys.argv[1]
         params = {'session_id': client_data}
-        url = f"http://localhost:3001?{urlencode(params)}"
+        url = f"http://localhost:8888?{urlencode(params)}"
         logger.info(f"Opening browser URL: {url}")
         webbrowser.open(url)
         

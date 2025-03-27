@@ -304,7 +304,6 @@ class Launcher:
 
     def _monitor_output(self, pipe, prefix):
         try:
-            logger.info(f"Started output monitoring for {prefix}")
             for line in iter(pipe.readline, ''):
                 line = line.strip()
                 if line:
@@ -312,7 +311,6 @@ class Launcher:
         except Exception as e:
             logger.error(f"Output monitoring error for {prefix}: {e}", exc_info=True)
         finally:
-            logger.info(f"Output monitoring for {prefix} has ended")
             pipe.close()
 
     @staticmethod
