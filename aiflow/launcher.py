@@ -5,6 +5,7 @@ import sys
 import threading
 import time
 import signal
+import atexit
 from typing import Optional, Dict
 from aiflow.events import event_base
 from aiflow.network.ws_client import WebSocketClient
@@ -20,7 +21,7 @@ class Launcher:
     _thread: Optional[threading.Thread] = None
     _lock = threading.Lock()
     _loop_ready = threading.Event()
-    _main_thread_exit = threading.Event()  # New event to control main thread exit
+    _main_thread_exit = threading.Event()
 
     # Singleton implementation
     def __new__(cls):
@@ -32,13 +33,13 @@ class Launcher:
 
     def _initialize(self):
         """Initialize all launcher components in one place"""
+        logger.info("Initializing Launcher...")
         self.running = True
         self.processes: Dict[str, subprocess.Popen] = {}
         self.caller_file = self._get_caller_info()
         
-        # Set up signal handlers for clean exit
-        signal.signal(signal.SIGINT, self._exit_handler)
-        signal.signal(signal.SIGTERM, self._exit_handler)
+        # Start server monitoring thread
+        self._start_server_monitor()
         
         # Start event loop thread
         self.start()
@@ -57,11 +58,76 @@ class Launcher:
         # Start a non-daemon thread that will keep the program alive
         self._start_keep_alive_thread()
 
+    def _start_server_monitor(self):
+        """Monitor WebSocket server status and exit when it's done"""
+        def monitor():
+            # Wait for initialization to complete
+            time.sleep(5)
+            
+            while True:
+                try:
+                    # Check if WebSocket server has exited
+                    for name, process in list(self.processes.items()):
+                        if name == 'WebSocketServer' and process.poll() is not None:
+                            logger.info("WebSocket server has exited - shutting down application")
+                            self._cleanup()
+                            os._exit(0)
+                    
+                    # Short sleep between checks
+                    time.sleep(0.5)
+                except Exception as e:
+                    logger.error(f"Error in server monitor: {e}")
+                    time.sleep(1)
+        
+        thread = threading.Thread(target=monitor,name="ServerMonitor", daemon=True)
+        thread.start()
+
+    def _cleanup(self):
+        """Clean up resources before exit"""
+        if not self.running:
+            return  # Already cleaning up
+        
+        self.running = False
+        logger.info("Cleaning up resources...")
+        
+        # Close WebSocket client if it exists
+        if hasattr(event_base, 'ws_client') and event_base.ws_client:
+            try:
+                if self._loop and self._loop.is_running():
+                    asyncio.run_coroutine_threadsafe(
+                        event_base.ws_client.close(), self._loop
+                    )
+            except Exception as e:
+                logger.error(f"Error closing WebSocket client: {e}")
+        
+        # Kill all child processes
+        for name, process in list(self.processes.items()):
+            try:
+                logger.info(f"Terminating {name}...")
+                if process.poll() is None:
+                    process.kill()
+            except Exception as e:
+                logger.error(f"Error killing {name}: {e}")
+        
+        # Stop the event loop
+        if self._loop and self._loop.is_running():
+            logger.info("Stopping event loop...")
+            try:
+                self._loop.call_soon_threadsafe(self._stop_loop)
+            except Exception as e:
+                logger.error(f"Error stopping event loop: {e}")
+        
+        # Signal the keep-alive thread to exit
+        self._main_thread_exit.set()
+    
+    def _stop_loop(self):
+        """Stop the asyncio event loop"""
+        self._loop.stop()
+
     def _start_keep_alive_thread(self):
         """Start a thread that keeps the program alive until explicitly stopped"""
         def keep_alive():
             logger.info("Keep-alive thread started - application will remain running")
-            # Wait until the exit event is set by the exit handler
             self._main_thread_exit.wait()
             logger.info("Keep-alive thread ending - allowing application to exit")
             
@@ -71,7 +137,7 @@ class Launcher:
     @classmethod
     def start(cls):
         if not cls._thread:
-            cls._thread = threading.Thread(target=cls._run_event_loop)
+            cls._thread = threading.Thread(target=cls._run_event_loop, name="RunEventLoop")
             cls._thread.daemon = True
             cls._thread.start()
 
@@ -103,12 +169,10 @@ class Launcher:
         if not process:
             raise RuntimeError("Failed to start WebSocket server")
             
-        # Wait for server to be available
         self._wait_for_server()
         logger.info("WebSocket server is ready")
 
     def _start_process(self, name: str, args: list) -> Optional[subprocess.Popen]:
-        """Start a new process and monitor its output"""
         try:
             process = subprocess.Popen(
                 args,
@@ -122,6 +186,7 @@ class Launcher:
             threading.Thread(
                 target=self._monitor_output,
                 args=(process.stdout, name),
+                name="MonitorOuputFromProcess",
                 daemon=True
             ).start()
             
@@ -147,7 +212,6 @@ class Launcher:
                 logger.error("No client ID available")
                 return False
             
-            # Keep running
             while self.running:
                 await asyncio.sleep(3)
         except Exception as e:
@@ -183,25 +247,6 @@ class Launcher:
             logger.error(f"Output monitoring error for {prefix}: {e}")
         finally:
             pipe.close()
-
-    def _exit_handler(self, signum, frame):
-        logger.info(f"Received signal {signum}, shutting down...")
-        self.running = False
-        
-        # Terminate all child processes
-        for name, process in self.processes.items():
-            logger.info(f"Terminating {name}...")
-            try:
-                if process.poll() is None:
-                    process.terminate()
-            except Exception as e:
-                logger.error(f"Error terminating {name}: {e}")
-        
-        # Signal the keep-alive thread to exit
-        self._main_thread_exit.set()
-        
-        # Exit with a slight delay to allow cleanup
-        threading.Thread(target=lambda: (time.sleep(0.5), os._exit(0))).start()
 
     @staticmethod
     def _get_caller_info() -> str:
