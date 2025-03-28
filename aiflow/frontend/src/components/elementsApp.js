@@ -272,7 +272,7 @@ const ElementsApp = ({ args, theme }) => {
       const newMap = { ...componentsMap };
       Object.keys(newMap).forEach(key => {
         if (newMap[key].time_stamp && newMap[key].time_stamp < streamingStart) {
-          console.log("Removing component:", newMap[key]);
+          console.warn("Removing component:", newMap[key]);
           delete newMap[key];
         }
       });
@@ -302,7 +302,7 @@ const ElementsApp = ({ args, theme }) => {
 
   return (
     <ElementsTheme theme={theme}>
-      <Box sx={{ width: '100%', boxSizing: 'border-box', padding: '20px' }}>
+      <Box sx={{ display: streamingEnd ? 'block' : 'none', width: '100%', boxSizing: 'border-box', padding: '20px' }}>
         <ErrorBoundary
           fallback={<div style={{
             padding: '20px', margin: '20px', backgroundColor: '#ffebee',

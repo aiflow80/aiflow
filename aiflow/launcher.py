@@ -4,6 +4,7 @@ import subprocess
 import sys
 import threading
 import time
+import signal
 from typing import Optional, Dict
 from aiflow.events import event_base
 from aiflow.network.ws_client import WebSocketClient
@@ -32,6 +33,10 @@ class Launcher:
     def _initialize(self):
         logger.info("Initializing...")
         
+        # Setup signal handlers for graceful shutdown
+        signal.signal(signal.SIGINT, self._handle_interrupt)
+        signal.signal(signal.SIGTERM, self._handle_interrupt)
+        
         self.running = True
         self.processes: Dict[str, subprocess.Popen] = {}
         self.caller_file = self._get_caller_info()
@@ -46,7 +51,9 @@ class Launcher:
             raise RuntimeError("Event loop initialization timeout")
         
         # Start server and wait for it to be ready
-        self._start_server()
+        process = self._start_server()
+        if not process:
+            logger.info("Server process not started")
         
         # Initialize client and launch browser
         self._client_ready = threading.Event()
@@ -57,6 +64,13 @@ class Launcher:
 
         # Start a non-daemon thread that will keep the program alive
         self._start_keep_alive_thread()
+
+    def _handle_interrupt(self, signum, frame):
+        """Handle interrupt signals like SIGINT (Ctrl+C) and SIGTERM"""
+        logger.info(f"Received signal {signum}, shutting down gracefully...")
+        self._cleanup()
+        # Use os._exit to avoid threading module shutdown errors
+        os._exit(0)
 
     def _start_server_monitor(self):
         """Monitor WebSocket server status and exit when it's done"""
@@ -164,9 +178,10 @@ class Launcher:
         # Check if server is already running
         try:
             with socket.create_connection(("localhost", config.websocket.port), timeout=1):
-                return
+                return "Process started"
         except Exception:
             pass
+
         server_script = os.path.join(os.path.dirname(__file__), 'network', 'ws_server.py')
         
         process = self._start_process(
@@ -177,8 +192,9 @@ class Launcher:
         if not process:
             logger.error("Failed to start WebSocket server process")
             raise RuntimeError("Failed to start WebSocket server")
-            
-        self._wait_for_server()
+        # Wait for the server to be ready before returning the process.
+        self._wait_for_server(timeout=10)
+        return process
 
     def _start_process(self, name: str, args: list) -> Optional[subprocess.Popen]:
         try:
