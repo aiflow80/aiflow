@@ -122,9 +122,23 @@ class Launcher:
             try:
                 logger.info(f"Terminating {name} (PID: {process.pid})...")
                 if process.poll() is None:
-                    process.kill()
+                    # First try graceful termination
+                    process.terminate()
+                    
+                    # Give the process time to clean up (especially important for the server)
+                    termination_timeout = 3  # seconds
+                    for _ in range(int(termination_timeout * 2)):
+                        if process.poll() is not None:
+                            logger.info(f"{name} terminated gracefully")
+                            break
+                        time.sleep(0.5)
+                    
+                    # If still running after timeout, forcefully kill it
+                    if process.poll() is None:
+                        logger.warning(f"{name} did not terminate gracefully, killing forcefully")
+                        process.kill()
                 else:
-                    pass
+                    logger.info(f"{name} was already terminated")
             except Exception as e:
                 logger.error(f"Error killing {name}: {e}", exc_info=True)
         
