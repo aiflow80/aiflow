@@ -28,7 +28,7 @@ class WebSocketClient:
         self._ready = asyncio.Event()
         self._running = True
         self._message_handlers = {}
-        self._init_thread = threading.Thread(target=self._start_asyncio_loop, name="WSClientInit", daemon=True)
+        self._init_thread = threading.Thread(target=self._start_asyncio_loop, name="Client", daemon=True)
         self._init_thread.start()
         
         # Wait for the client to initialize before returning
@@ -52,7 +52,6 @@ class WebSocketClient:
             loop.close()
 
     async def _run_event_loop(self):
-        logger.info("WebSocketClient event loop started")
         while self._running:
             if not self._connected.is_set():
                 try:
@@ -74,7 +73,6 @@ class WebSocketClient:
             logger.error(f"Error processing message: {e}")
 
     async def _listen_messages(self):
-        logger.info("Starting message listener")
         while self._connected.is_set():
             try:
                 message = await self.client.read_message()
@@ -101,7 +99,6 @@ class WebSocketClient:
             if self._connected.is_set() and self.client and not self.client.close_code:
                 return
 
-            logger.info("Attempting to connect to WebSocket server")
             for attempt in range(config.websocket.retry_max_attempts):
                 try:
                     if attempt > 0:
@@ -110,7 +107,6 @@ class WebSocketClient:
                         logger.info(f"Retrying connection in {delay} seconds (attempt {attempt+1})")
                         await asyncio.sleep(delay)
 
-                    logger.info(f"Connecting to ws://{config.websocket.host}:{config.websocket.port}/ws")
                     self.client = await websocket_connect(
                         f"ws://{config.websocket.host}:{config.websocket.port}/ws",
                         connect_timeout=config.websocket.connection_timeout
@@ -118,7 +114,6 @@ class WebSocketClient:
                     
                     data = json.loads(await self.client.read_message())
                     self.client_id = data['client_id']
-                    logger.info(f"Connected with client_id: {self.client_id}")
                     
                     self._connected.set()
                     self._ready.set()
@@ -134,35 +129,32 @@ class WebSocketClient:
     async def wait_for_ready(self, timeout=10):
         await asyncio.wait_for(self._ready.wait(), timeout=timeout)
 
-    async def send(self, payload: dict, targets: list = None):
+    async def send(self, payload: dict, target: str):
         try:
             await self.connect()
+            payload['client_id'] = target
             await self.client.write_message(payload)
         except WebSocketClosedError:
             await self.connect(force_reconnect=True)
-            await self.send(payload, targets)
+            await self.send(payload, target)
         except Exception as e:
             logger.error(f"Failed to send message: {str(e)}")
             raise
 
-    def send_sync(self, payload: dict, targets: list = None):
-        """Synchronous version of send that can be called from any thread"""
+    def send_sync(self, payload: dict, target: str = None):
         try:
             # Check if we're already in an event loop
             try:
                 loop = asyncio.get_event_loop()
                 if loop.is_running():
-                    # We're in an event loop, create a new future and run it properly
-                    future = asyncio.run_coroutine_threadsafe(self.send(payload, targets), loop)
+                    future = asyncio.run_coroutine_threadsafe(self.send(payload, target), loop)
                     return future.result()
                 else:
-                    # Loop exists but isn't running
-                    return loop.run_until_complete(self.send(payload, targets))
+                    return loop.run_until_complete(self.send(payload, target))
             except RuntimeError:
-                # No event loop in this thread, create a new one
                 loop = asyncio.new_event_loop()
                 try:
-                    return loop.run_until_complete(self.send(payload, targets))
+                    return loop.run_until_complete(self.send(payload, target))
                 finally:
                     loop.close()
         except Exception as e:

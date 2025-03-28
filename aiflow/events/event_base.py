@@ -1,7 +1,5 @@
-import asyncio
 from collections import deque
 import time
-import uuid
 from aiflow import logger
 import threading
 from datetime import datetime
@@ -25,11 +23,9 @@ class EventBase:
         self.events = {}
         self.events_store = {}
         self.paired = False
-        self.streaming_id = None
-        self.message_queue = deque()
         self._processing = False
         self._ready = threading.Event()
-        self.streaming_session = {}  # Initialize streaming_session dictionary
+        self.session_state = {}
 
     def set_ws_client(self, client):
         self._ws_client = client
@@ -57,10 +53,6 @@ class EventBase:
             await self.send_response_async(response)
 
             if self.paired:
-                logger.info(
-                    f"Session refreshed: {datetime.now().strftime('%H:%M:%S.%f')[:-3]}"
-                )
-
                 if message.get("type") == "events":
                     self.events_store["events"] = message.get("payload")
                     # Store event values by ID for easy retrieval
@@ -79,9 +71,6 @@ class EventBase:
                     self._run_module_in_thread(self.caller_file)
             else:
                 self.paired = True
-                logger.info(
-                    f"Paired session: {self.session_id} with client: {self.sender_id}"
-                )
 
             # Mark as ready after first message is processed
             self._ready.set()
@@ -117,7 +106,7 @@ class EventBase:
         if self._ws_client:
             self._processing = True
             try:
-                self._ws_client.send_sync(payload)
+                self._ws_client.send_sync(payload, self.sender_id)
             except Exception as e:
                 logger.error(f"Failed to send response synchronously: {e}")
             finally:
@@ -126,14 +115,12 @@ class EventBase:
             self.queue_message(payload)
 
     async def send_response_async(self, payload):
-        """Send a response asynchronously, for use from async code"""
         try:
-            await self._ws_client.send(payload)
+            await self._ws_client.send(payload, self.sender_id)
         except Exception as e:
             logger.error(f"Failed to send response asynchronously: {e}")
 
     def send_component_update(self, component_dict):
-        """Send a component update message to the client synchronously"""
         payload = {
             "type": "component_update",
             "payload": {"component": component_dict, "timestamp": time.time()},
@@ -141,7 +128,6 @@ class EventBase:
         self.send_response(payload)
 
     async def send_component_update_async(self, component_dict):
-        """Send a component update message to the client asynchronously"""
         payload = {
             "type": "component_update",
             "payload": {
@@ -150,9 +136,7 @@ class EventBase:
         }
         await self.send_response_async(payload)
 
-    # Main send method - choose sync by default
     def send_response(self, payload):
-        """Default send method - synchronous by default"""
         self.send_response_sync(payload)
 
     def get_message_info(self):
@@ -163,18 +147,13 @@ class EventBase:
         }
 
     def wait_until_ready(self, timeout=30):
-        """Wait until the EventBase has processed all messages and is ready."""
         return self._ready.wait(timeout=timeout)
 
     def is_ready(self):
-        """Check if EventBase is ready."""
         return self._ready.is_set()
 
     def reset_mui_state(self):
-        """Reset MUI builder state"""
         from aiflow.mui import mui
-
         mui.reset()
-
 
 event_base = EventBase()

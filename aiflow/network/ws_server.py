@@ -15,7 +15,7 @@ DEFAULT_CONFIG = {
 }
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
-logger = logging.getLogger('WebSocketServer')
+logger = logging.getLogger('Server')
 for log_name in ["tornado.access", "tornado.application", "tornado.general"]:
     logging.getLogger(log_name).setLevel(logging.WARNING)
 
@@ -175,13 +175,14 @@ class WebSocketServer:
         
         # Verify the path exists
         if os.path.exists(frontend_path):
-            logger.info(f"Using frontend path: {frontend_path}")
+            # logger.info(f"Using frontend path: {frontend_path}")
+            pass
         else:
             logger.warning(f"Frontend path does not exist: {frontend_path}")
         
         return Application([
             (r"/health", HealthHandler),
-            (r"/api/data", DataHandler),
+            (r"/api", DataHandler),
             (r"/ws", SecureWebSocketHandler, {"manager": self.manager}),
             (r"/(.*)", StaticFileHandler, {
                 "path": frontend_path,
@@ -199,11 +200,10 @@ class WebSocketServer:
                 max_buffer_size=10485760,
                 max_body_size=10485760
             )
-            logger.info(f"WebSocket server started at ws://0.0.0.0:{port or DEFAULT_CONFIG['websocket']['port']}/ws")
+            logger.info(f"Server started at 0.0.0.0:{port or DEFAULT_CONFIG['websocket']['port']}")
         except OSError as e:
             if "Address already in use" in str(e):
                 logger.error(f"Port busy error: {e}")
-                # Optionally perform graceful shutdown or exit
                 return
             else:
                 raise

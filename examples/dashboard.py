@@ -3,7 +3,9 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pandas as pd
-from aiflow import mui
+from aiflow import mui, logger
+from aiflow.events import events
+
 import io
 
 def earningcard():
@@ -493,11 +495,6 @@ def totalgrowthbarchart():
 
 def datagridcard():
     # State management for uploaded data
-    if 'df' not in st.session_state:
-        st.session_state.df = None
-
-    # Get events from session state
-    events = st.session_state.get("events", {})
     file_event = events.get("csv_upload", {})
 
     # Handle file upload event
@@ -510,9 +507,8 @@ def datagridcard():
                 import base64
                 content = base64.b64decode(file_content.split(',')[1])
                 df = pd.read_csv(io.BytesIO(content))
-                st.session_state.df = df
         except Exception as e:
-            st.error(f"Error reading file: {str(e)}")
+            logger.error(f"Error reading file: {str(e)}")
 
     with mui.Card(sx={"p": 2}):
         with mui.CardHeader(
@@ -593,19 +589,19 @@ def dashboard():
                         earningcard()
                     with mui.Grid(item=True, lg=4, md=6, sm=6, xs=12):
                         totalorderlinechartcard()
-                    # with mui.Grid(item=True, lg=4, md=12, sm=12, xs=12):
-                    #     with mui.Grid(container=True, spacing=2):
-                    #         with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
-                    #             totalincomedarkcard()
-                    #         with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
-                    #             totalincomelightcard()
-            # # Second row
-            # with mui.Grid(item=True, xs=12):
-            #     with mui.Grid(container=True, spacing=2):
-            #         with mui.Grid(item=True, xs=12, md=8):
-            #             totalgrowthbarchart()
-            #         with mui.Grid(item=True, xs=12, md=4):
-            #             popularcard()
+                    with mui.Grid(item=True, lg=4, md=12, sm=12, xs=12):
+                        with mui.Grid(container=True, spacing=2):
+                            with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
+                                totalincomedarkcard()
+                            with mui.Grid(item=True, sm=6, xs=12, md=6, lg=12):
+                                totalincomelightcard()
+            # Second row
+            with mui.Grid(item=True, xs=12):
+                with mui.Grid(container=True, spacing=2):
+                    with mui.Grid(item=True, xs=12, md=8):
+                        totalgrowthbarchart()
+                    with mui.Grid(item=True, xs=12, md=4):
+                        popularcard()
 
             # Third row - DataGrid
             # with mui.Grid(item=True, xs=12):
@@ -613,3 +609,4 @@ def dashboard():
 
 if __name__ == "__main__":
     dashboard()
+    logger.info("Dashboard loaded successfully.")

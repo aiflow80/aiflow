@@ -1,7 +1,5 @@
-import json
 import sys
 import webbrowser
-import time
 from urllib.parse import urlencode
 import logging
 
@@ -23,9 +21,6 @@ def main():
         url = f"http://localhost:8888?{urlencode(params)}"
         logger.info(f"Opening browser URL: {url}")
         webbrowser.open(url)
-        
-        # Keep the process running
-
     except KeyboardInterrupt:
         logger.info("Browser launcher terminated")
     except Exception as e:
