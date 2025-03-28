@@ -47,7 +47,8 @@ class WebSocketClient:
             loop.run_until_complete(self.connect())
             loop.run_until_complete(self._run_event_loop())
         except Exception as e:
-            logger.error(f"WebSocket client loop failed: {e}")
+            # logger.error(f"WebSocket client loop failed: {e}")
+            pass
         finally:
             loop.close()
 
