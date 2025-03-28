@@ -44,7 +44,7 @@ export const WebSocketProvider = ({ children }) => {
               sessionId && socket.send(JSON.stringify({
                 type: 'pair', client_id: sessionId, sender_id: data.client_id, payload: 'Connection established'
               }));
-              console.log('Pair message sent:', data.clientId);
+              console.log('Pair message sent:', data.client_id);
               return;
             }
 

@@ -120,7 +120,6 @@ class Launcher:
         # Kill all child processes
         for name, process in list(self.processes.items()):
             try:
-                logger.info(f"Terminating {name} (PID: {process.pid})...")
                 if process.poll() is None:
                     # First try graceful termination
                     process.terminate()
@@ -138,7 +137,7 @@ class Launcher:
                         logger.warning(f"{name} did not terminate gracefully, killing forcefully")
                         process.kill()
                 else:
-                    logger.info(f"{name} was already terminated")
+                    pass
             except Exception as e:
                 logger.error(f"Error killing {name}: {e}", exc_info=True)
         

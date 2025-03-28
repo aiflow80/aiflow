@@ -302,7 +302,7 @@ const ElementsApp = ({ args, theme }) => {
 
   return (
     <ElementsTheme theme={theme}>
-      <Box sx={{ display: streamingEnd ? 'block' : 'none', width: '100%', boxSizing: 'border-box', padding: '20px' }}>
+      <Box sx={{ width: '100%', boxSizing: 'border-box', padding: '20px' }}>
         <ErrorBoundary
           fallback={<div style={{
             padding: '20px', margin: '20px', backgroundColor: '#ffebee',
