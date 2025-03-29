@@ -57,17 +57,26 @@ const handleFileEvent = async (event, key, socketService, clientId) => {
     if (!event?.target?.files?.length) return;
     const file = event.target.files[0];
     const reader = new FileReader();
+
     reader.onload = () => {
       send({
-        key, type: EVENT_TYPES.FILE_CHANGE,
-        value: { result: reader.result, name: file.name, type: file.type, size: file.size },
+        key: key,
+        type: EVENT_TYPES.FILE_CHANGE,
+        value: null,
+        fileEvent: {
+          data: reader.result,
+          name: file.name,
+          type: file.type,
+          size: file.size
+        },
         timestamp: Date.now()
       }, socketService, clientId);
     };
+
     reader.readAsDataURL(file);
   } catch (error) {
     console.error('File handling error:', error);
-    send({ key, type: 'error', value: error.message, timestamp: Date.now() }, socketService, clientId);
+    send({}, socketService, clientId);
   }
 };
 

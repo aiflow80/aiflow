@@ -141,7 +141,7 @@ class WebSocketClient:
             logger.error(f"Failed to send message: {str(e)}")
             raise
 
-    def send_sync(self, payload: dict, target: str = None):
+    def send_sync(self, payload: dict, target: str):
         try:
             # Check if we're already in an event loop
             try:

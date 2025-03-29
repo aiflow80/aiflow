@@ -33,4 +33,4 @@ except KeyboardInterrupt:
     logger.info("KeyboardInterrupt received during module loading, shutting down...")
     launcher.force_exit()
 
-__all__ = ['mui', 'logger', 'module', 'run']
+__all__ = ['mui', 'logger']

@@ -25,7 +25,7 @@ class EventBase:
         self.paired = False
         self._processing = False
         self._ready = threading.Event()
-        self.session_state = {}
+        self.state = {}
 
     def set_ws_client(self, client):
         self._ws_client = client
@@ -54,13 +54,20 @@ class EventBase:
 
             if self.paired:
                 if message.get("type") == "events":
-                    self.events_store["events"] = message.get("payload")
+                    self.events_store["payload"] = message.get("payload")
                     # Store event values by ID for easy retrieval
-                    form_events = self.events_store.get('events').get("formEvents", [])
-                    for event_id in form_events:
-                        event_data = form_events[event_id]
-                        if "value" in event_data:
-                            self.events[event_id] = event_data["value"]
+                    form_events = self.events_store.get('payload').get("formEvents", [])
+                    if form_events:
+                        for event_id in form_events:
+                            event_data = form_events[event_id]
+                            if "value" in event_data:
+                                self.events[event_id] = event_data["value"]
+
+                    file_event = self.events_store.get('payload').get("fileEvent", [])
+                    if file_event:
+                        event_id = self.events_store.get('payload').get("key")
+                        self.events[event_id] = file_event
+
 
                 # Reset MUI state before running the module again
                 self.reset_mui_state()
