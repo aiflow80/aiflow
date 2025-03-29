@@ -80,7 +80,6 @@ class WebSocketClient:
                 if message:
                     await self._handle_message(message)
                 else:
-                    logger.warning("Empty message received, connection closed by server")
                     break
             except Exception as e:
                 logger.error(f"Error reading message: {e}")

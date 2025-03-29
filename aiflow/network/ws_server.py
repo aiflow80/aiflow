@@ -229,6 +229,6 @@ if __name__ == "__main__":
     try:
         asyncio.run(main())
     except KeyboardInterrupt:
-        logger.info("Server shutdown requested")
+        pass
     finally:
         logger.info("Server shutdown complete")

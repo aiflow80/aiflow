@@ -83,7 +83,6 @@ class Launcher:
                     # Check if WebSocket server has exited
                     for name, process in list(self.processes.items()):
                         if name == 'Server' and process.poll() is not None:
-                            logger.info("Server has exited - shutting down application")
                             self._cleanup()
                             os._exit(0)
                     
