@@ -1,15 +1,12 @@
 import pandas as pd
-from aiflow.events import events_store, state
 from aiflow import mui
+from aiflow.events import events_store, state
 
-def datagrid(id, dataframe):
-    """Create a MUI DataGrid with server-side pagination, sorting, and filtering."""
+def create_data_grid_from_df(df, grid_id="my-grid", **grid_props):
     _state = state
-    # Add event tracking state
+    # Initialize state variables for grid events
     if '__last_grid_event' not in _state:
         _state['__last_grid_event'] = None
-
-    # Add filter state
     if '__grid_filter' not in _state:
         _state['__grid_filter'] = None
     if '__grid_page' not in _state:
@@ -22,17 +19,24 @@ def datagrid(id, dataframe):
         _state['__grid_sort_dir'] = None
 
     # Create a copy of the dataframe to avoid modifying the original
-    if dataframe is None:
+    if df is None:
         return mui.Typography(
             "No data available to display",
             sx={"textAlign": "center"}
         )
     
-    df = dataframe.copy()
-    processed_df = df.copy()
+    original_df = df.copy()
+    processed_df = original_df.copy()
 
     # Handle grid events with deduplication
-    grid_event = events_store.get(id, {})
+    # Corrected to handle events_store structure with payload
+    payload = events_store.get('payload', {})
+    grid_event = {}
+    
+    # Check if the payload is for our grid
+    if payload and payload.get('key') == grid_id:
+        grid_event = payload
+    
     if grid_event:
         current_event = (grid_event.get('type'), str(grid_event.get('value')))
         
@@ -46,19 +50,37 @@ def datagrid(id, dataframe):
                 
                 # Apply filtering
                 if filter_model and filter_model.get('items'):
-                    processed_df = df.copy()
+                    processed_df = original_df.copy()
                     for filter_item in filter_model['items']:
                         field = filter_item.get('field')
                         operator = filter_item.get('operator')
                         value = filter_item.get('value')
                         
-                        if field and operator == '=':
-                            processed_df = processed_df[processed_df[field] == value]
+                        if field and operator:
+                            # String operators
+                            if operator == 'contains' and isinstance(value, str):
+                                processed_df = processed_df[processed_df[field].astype(str).str.contains(value, na=False)]
+                            elif operator == 'does not contain' and isinstance(value, str):
+                                processed_df = processed_df[~processed_df[field].astype(str).str.contains(value, na=False)]
+                            elif operator == '=' or operator == 'equals':
+                                processed_df = processed_df[processed_df[field] == value]
+                            elif operator == '!=' or operator == 'does not equal':
+                                processed_df = processed_df[processed_df[field] != value]
+                            elif operator == 'starts with' and isinstance(value, str):
+                                processed_df = processed_df[processed_df[field].astype(str).str.startswith(value, na=False)]
+                            elif operator == 'ends with' and isinstance(value, str):
+                                processed_df = processed_df[processed_df[field].astype(str).str.endswith(value, na=False)]
+                            elif operator == 'is empty':
+                                processed_df = processed_df[processed_df[field].isna() | (processed_df[field].astype(str) == '')]
+                            elif operator == 'is not empty':
+                                processed_df = processed_df[processed_df[field].notna() & (processed_df[field].astype(str) != '')]
+                            elif operator == 'is any of' and isinstance(value, list):
+                                processed_df = processed_df[processed_df[field].isin(value)]
                     
                     _state['__df'] = processed_df
                     _state['__grid_page'] = 0
                 else:
-                    _state['__df'] = df.copy()
+                    _state['__df'] = original_df.copy()
                     _state['__grid_page'] = 0
 
             elif grid_event.get('type') == 'sort-change':
@@ -68,7 +90,7 @@ def datagrid(id, dataframe):
                     _state['__grid_sort_dir'] = sort_model[0].get('sort')
                     # Apply sorting
                     if _state['__grid_sort_field'] and _state['__grid_sort_dir']:
-                        sorted_df = df.copy() if '__df' not in _state else _state['__df'].copy()
+                        sorted_df = original_df.copy() if '__df' not in _state else _state['__df'].copy()
                         _state['__df'] = sorted_df.sort_values(
                             by=_state['__grid_sort_field'],
                             ascending=(_state['__grid_sort_dir'] == 'asc')
@@ -95,7 +117,10 @@ def datagrid(id, dataframe):
         row['id'] = i + start_idx
 
     # Create columns configuration with types
-    columns = []
+    columns = [
+        {'field': 'id', 'headerName': 'ID', 'width': 50, 'type': 'number'},
+    ]
+    
     for col in df.columns:
         column_def = {
             'field': col, 
@@ -110,20 +135,15 @@ def datagrid(id, dataframe):
             column_def['type'] = 'dateTime'
         elif pd.api.types.is_bool_dtype(df[col].dtype):
             column_def['type'] = 'boolean'
-            
+        
         columns.append(column_def)
 
-    if len(columns) > 2000:
-        return mui.Typography(
-            "Too many columns (maximum 2000 supported)",
-            sx={"textAlign": "center"}
-        )
-    
+    # Create and return the DataGrid component with server-side features
     return mui.DataGrid(
-        id=id,  # Use the provided id parameter instead of hardcoding
+        id=grid_id,
         rows=rows,
         columns=columns,
-        checkboxSelection=True,
+        checkboxSelection=False,
         paginationMode="server",
         sortingMode="server",
         filterMode="server",
@@ -138,5 +158,6 @@ def datagrid(id, dataframe):
                     "page": _state['__grid_page']
                 }
             }
-        }
+        },
+        **grid_props
     )
