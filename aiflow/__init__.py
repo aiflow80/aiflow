@@ -5,10 +5,9 @@ from aiflow.mui import mui
 
 launcher = Launcher()  
 
-from aiflow.events.event_base import event_base
-from aiflow.events import run  # Import run from events package, not from event_base
+from aiflow.events import event_base  # Import run from events package, not from event_base
 
-# Expose the events dictionary directly
+# Expose the events dictionary references
 events = event_base.events
 events_store = event_base.events_store
 state = event_base.state

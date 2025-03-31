@@ -2,8 +2,7 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from aiflow import mui
-from aiflow.events import events_store, events  # Direct import of the events dictionary
+from aiflow import mui, events  # Direct import of the events dictionary
 
 skills_options = [
     "Python", "JavaScript", "React", "Java", "C++", "SQL", 
