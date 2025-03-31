@@ -8,16 +8,23 @@ import loadMuiIcons from "./modules/mui/icons";
 import loadMuiLab from "./modules/mui/lab";
 import { useWebSocket } from "../context/WebSocketContext";
 
+// Constants
 const loaders = { muiElements: loadMuiElements, muiIcons: loadMuiIcons, muiLab: loadMuiLab };
 const EVENT_TYPES = {
-  CLICK: 'click', CHANGE: 'change', BLUR: 'blur', AUTOCOMPLETE_CHANGE: 'autocomplete-change',
-  SELECT_CHANGE: 'select-change', FILE_CHANGE: 'file-change', FILTER_CHANGE: 'filter-change',
-  SORT_CHANGE: 'sort-change', PAGINATION_CHANGE: 'pagination-change'
+  CLICK: 'click', 
+  CHANGE: 'change', 
+  BLUR: 'blur', 
+  AUTOCOMPLETE_CHANGE: 'autocomplete-change',
+  SELECT_CHANGE: 'select-change', 
+  FILE_CHANGE: 'file-change', 
+  FILTER_CHANGE: 'filter-change',
+  SORT_CHANGE: 'sort-change', 
+  PAGINATION_CHANGE: 'pagination-change'
 };
 
+// Helper functions
 const sanitizeValue = (value) => {
   if (value === null || value === undefined) return null;
-  // Added check for React elements to avoid recursion issues.
   if (typeof value === 'object' && value !== null && value.$$typeof) return '[React Element]';
   if (typeof value === 'function') return '[Function]';
   if (value instanceof File) return { name: value.name, type: value.type, size: value.size };
@@ -35,7 +42,8 @@ const createEventPayload = (key, type, value) => ({ key, type, value, timestamp:
 const send = async (data) => {
   try {
     const sanitizedData = {
-      ...data, value: sanitizeValue(data.value),
+      ...data, 
+      value: sanitizeValue(data.value),
       formEvents: data.formEvents ? sanitizeValue(data.formEvents) : null,
       timestamp: Date.now()
     };
@@ -44,8 +52,10 @@ const send = async (data) => {
       const sessionId = urlParams.get('session_id');
       if (sessionId) {
         window.socketService.send({
-          type: 'events', client_id: sessionId,
-          sender_id: window.clientId, payload: sanitizedData
+          type: 'events', 
+          client_id: sessionId,
+          sender_id: window.clientId, 
+          payload: sanitizedData
         });
       }
     }
@@ -83,7 +93,8 @@ const handleFileEvent = async (event, key, socketService, clientId) => {
 const evaluateFunction = (funcString) => {
   const context = {
     TextField: loaders.muiElements("TextField"),
-    React, createElement: React.createElement
+    React, 
+    createElement: React.createElement
   };
   const func = new Function(...Object.keys(context), `return ${funcString}`);
   return func(...Object.values(context));
@@ -109,28 +120,9 @@ const validateElement = (module, element) => {
     throw new Error(`Element "${element}" does not exist in module "${module}"`);
 };
 
-const preprocessJsonString = (jsonString) => {
-  try {
-    const nanMatches = jsonString.match(/NaN/g);
-    if (nanMatches) console.log('Found NaN values:', nanMatches.length);
-
-    let processed = jsonString
-      .replace(/"[^"]+"\s*:\s*NaN/g, match => match.replace(/NaN$/, 'null'))
-      .replace(/,\s*NaN\s*,/g, ',null,')
-      .replace(/\[\s*NaN\s*,/g, '[null,')
-      .replace(/,\s*NaN\s*\]/g, ',null]')
-      .replace(/\[\s*NaN\s*\]/g, '[null]')
-      .replace(/:\s*NaN\b/g, ': null');
-
-    if (processed.includes('NaN')) console.error('NaN values still present after preprocessing');
-    return processed;
-  } catch (error) {
-    console.error('Error during preprocessing:', error);
-    throw error;
-  }
-};
-
+// Main component
 const ElementsApp = ({ args, theme }) => {
+  // State
   const [uiTree, setUiTree] = useState([]);
   const [formEvents, setFormEvents] = useState({});
   const [componentsMap, setComponentsMap] = useState({});
@@ -139,13 +131,19 @@ const ElementsApp = ({ args, theme }) => {
   const [previousComponentsMap, setPreviousComponentsMap] = useState({});
   const { socketService, clientId } = useWebSocket();
 
+  // Set global references
   useEffect(() => {
     window.socketService = socketService;
     window.clientId = clientId;
   }, [socketService, clientId]);
 
+  // Event handling functions
   function sendEvent(data) { send(data, socketService, clientId); }
-  function handleFileEventWithContext(event, key) { handleFileEvent(event, key, socketService, clientId); }
+  
+  function handleFileEventWithContext(event, key) { 
+    handleFileEvent(event, key, socketService, clientId); 
+  }
+  
   function handleFormEvent(eventData) {
     setFormEvents(prev => ({
       ...prev, [eventData.key]: { id: eventData.key, value: eventData.value }
@@ -204,6 +202,7 @@ const ElementsApp = ({ args, theme }) => {
     return handlers;
   }
 
+  // Rendering functions
   function renderElement(node) {
     const { module, type, props = {}, children = [], content } = node;
     if (module === "text" || type === "text") return <span>{props?.content || content || ""}</span>;
@@ -236,15 +235,26 @@ const ElementsApp = ({ args, theme }) => {
     return jsx(LoadedElement, finalProps, ...renderedChildren);
   }
 
+  // Build the UI tree from component map
+  function buildUiTree(map) {
+    const lookup = {};
+    Object.values(map).forEach(comp => lookup[comp.id] = { ...comp, children: [...(comp.children || [])] });
+    Object.values(lookup).forEach(comp => {
+      if (comp.parentId && lookup[comp.parentId]) lookup[comp.parentId].children.push(comp);
+    });
+    return Object.values(lookup).filter(c => !c.parentId);
+  }
+
+  // WebSocket listener for component updates
   useEffect(() => {
     const unsub = socketService.addListener('component_update', (payload) => {
       if (!payload?.component) {
         if (!payload?.component) {
           if (payload.message === 'stream_start') {
-            setStreamingStart(payload.time_stamp); // Set streaming start flag for new session
+            setStreamingStart(payload.time_stamp);
             console.warn('New streaming session started:', payload.time_stamp);
           } else if (payload.message === 'stream_end') {
-            setStreamingEnd(payload.time_stamp); // Set streaming end flag for session end
+            setStreamingEnd(payload.time_stamp);
             console.warn('Streaming session ended:', payload.time_stamp);
           }
         }
@@ -252,30 +262,26 @@ const ElementsApp = ({ args, theme }) => {
       }
 
       setComponentsMap(prevMap => {
-        // Create a new map with all existing components
         const newMap = { ...prevMap };
-
-        // Add or update the component from the payload
         newMap[payload.component.id] = {
           ...payload.component,
           timestamp: payload.timestamp,
           streamingId: payload.streaming_id
         };
-
         return newMap;
       });
     });
     return unsub;
   }, [socketService]);
 
-  // Update UI tree when component map changes
+  // Save previous component map when streaming starts
   useEffect(() => {
     if (Object.keys(componentsMap).length > 0 && streamingStart) {
       setPreviousComponentsMap(componentsMap);
     }
   }, [streamingStart]);
 
-  // Update UI tree when component map changes
+  // Clean up old components when streaming ends
   useEffect(() => {
     if (Object.keys(componentsMap).length > 0 && streamingStart) {
       const newMap = { ...componentsMap };
@@ -289,22 +295,14 @@ const ElementsApp = ({ args, theme }) => {
     }
   }, [streamingEnd]);
 
-  // Add a separate effect to update the UI tree when the component map changes
+  // Update UI tree when component map changes
   useEffect(() => {
     const tree = buildUiTree(componentsMap);
     setUiTree(tree);
     console.log('UiTree updated with new component details:', tree);
   }, [componentsMap]);
 
-  function buildUiTree(map) {
-    const lookup = {};
-    Object.values(map).forEach(comp => lookup[comp.id] = { ...comp, children: [...(comp.children || [])] });
-    Object.values(lookup).forEach(comp => {
-      if (comp.parentId && lookup[comp.parentId]) lookup[comp.parentId].children.push(comp);
-    });
-    return Object.values(lookup).filter(c => !c.parentId);
-  }
-
+  // Render UI elements
   const elements = uiTree.map((node, index) => (
     <React.Fragment key={node.id || index}>{renderElement(node)}</React.Fragment>
   ));
