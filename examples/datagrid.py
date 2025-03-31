@@ -3,9 +3,8 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pandas as pd
-from aiflow import mui, logger
-from aiflow.events import events, state
-from aiflow.mui.custom_components.data_grid import create_data_grid_from_df
+from aiflow import mui, logger, events, state
+from aiflow.mui.custom_components.data_grid import datagrid
 
 import io
 
@@ -59,7 +58,7 @@ def datagridcard():
                 df = state['df']
                 
                 with mui.Box(
-                    create_data_grid_from_df(
+                    datagrid(
                         df, 
                         grid_id="advanced-grid", 
                         page_size=10,

@@ -34,7 +34,17 @@ export const WebSocketProvider = ({ children }) => {
               return;
             }
 
-            const data = typeof event.data === 'string' ? JSON.parse(event.data) : event.data;
+            // Safely parse JSON data with NaN, Infinity, and -Infinity handling
+            let data;
+            if (typeof event.data === 'string') {
+              // Replace NaN, Infinity and -Infinity with null before parsing
+              const safeJsonString = event.data.replace(/:\s*NaN\s*([,}])/g, ': null$1')
+                                              .replace(/:\s*Infinity\s*([,}])/g, ': null$1')
+                                              .replace(/:\s*-Infinity\s*([,}])/g, ': null$1');
+              data = JSON.parse(safeJsonString);
+            } else {
+              data = event.data;
+            }
             // console.log('📥 WebSocket message received:', { timestamp: new Date().toISOString(), data });
 
             // Handle connection messages

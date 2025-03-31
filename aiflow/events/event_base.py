@@ -35,8 +35,14 @@ class EventBase:
 
     async def handle_message(self, message):
         self.last_message = message.get("payload")
+        self.previous_sender_id = self.sender_id
         self.sender_id = message.get("sender_id")
         self.session_id = message.get("client_id")
+
+        if self.previous_sender_id and self.previous_sender_id != self.sender_id:
+            self.events_store.clear()  
+            self.events.clear()        
+            self.state.clear()
 
         if self.sender_id:
             response = {

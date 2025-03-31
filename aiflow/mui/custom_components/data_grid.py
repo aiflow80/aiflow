@@ -1,8 +1,7 @@
 import pandas as pd
-from aiflow import mui
-from aiflow.events import events_store, state
+from aiflow import mui, events_store, state
 
-def create_data_grid_from_df(df, grid_id="my-grid", **grid_props):
+def datagrid(df, grid_id="my-grid", **grid_props):
     _state = state
     # Initialize state variables for grid events
     if '__last_grid_event' not in _state:

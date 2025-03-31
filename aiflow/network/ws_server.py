@@ -197,8 +197,8 @@ class WebSocketServer:
             self.server = app.listen(
                 port or DEFAULT_CONFIG['websocket']['port'],
                 address="0.0.0.0",
-                max_buffer_size=10485760,
-                max_body_size=10485760
+                max_buffer_size=1073741824,  # 1 GB
+                max_body_size=1073741824     # 1 GB
             )
             logger.info(f"Server started at 0.0.0.0:{port or DEFAULT_CONFIG['websocket']['port']}")
         except OSError as e:

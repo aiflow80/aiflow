@@ -281,7 +281,7 @@ const ElementsApp = ({ args, theme }) => {
       const newMap = { ...componentsMap };
       Object.keys(newMap).forEach(key => {
         if (newMap[key].time_stamp && newMap[key].time_stamp < streamingStart) {
-          console.warn("Removing component:", newMap[key]);
+          console.log("Removing component:", newMap[key]);
           delete newMap[key];
         }
       });

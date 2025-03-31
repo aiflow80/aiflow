@@ -1,4 +1,3 @@
-import time
 from aiflow.logger import root_logger as logger
 
 from aiflow.launcher import Launcher
@@ -8,6 +7,11 @@ launcher = Launcher()
 
 from aiflow.events.event_base import event_base
 from aiflow.events import run  # Import run from events package, not from event_base
+
+# Expose the events dictionary directly
+events = event_base.events
+events_store = event_base.events_store
+state = event_base.state
 
 def init(wait_timeout=30):
     try:
@@ -33,4 +37,4 @@ except KeyboardInterrupt:
     logger.info("KeyboardInterrupt received during module loading, shutting down...")
     launcher.force_exit()
 
-__all__ = ['mui', 'logger']
+__all__ = ['mui', 'events', 'events_store', 'state', 'logger']
