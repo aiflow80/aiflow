@@ -3,8 +3,7 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pandas as pd
-from aiflow import mui, logger
-from aiflow.events import events
+from aiflow import mui, logger, events
 
 import io
 
