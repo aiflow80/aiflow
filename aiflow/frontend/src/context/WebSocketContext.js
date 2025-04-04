@@ -3,7 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 const WebSocketContext = createContext(null);
 const WS_URL = 'ws://localhost:8888/ws';
 // Add max chunk size constant (1MB)
-const MAX_CHUNK_SIZE = 5 * 1024 * 1024; 
+const MAX_CHUNK_SIZE = 1 * 1024 * 1024; 
 // Add chunk transmission delay (in ms)
 const CHUNK_TRANSMISSION_DELAY = 100;
 
@@ -63,67 +63,33 @@ export const WebSocketProvider = ({ children }) => {
 
         socket.onmessage = (event) => {
           try {
-            if (!event.data) {
-              console.warn('Received empty message');
-              return;
-            }
-
-            let data;
-            if (typeof event.data === 'string') {
-              const safeJsonString = event.data.replace(/:\s*NaN\s*([,}])/g, ': null$1')
-                                              .replace(/:\s*Infinity\s*([,}])/g, ': null$1')
-                                              .replace(/:\s*-Infinity\s*([,}])/g, ': null$1');
-              data = JSON.parse(safeJsonString);
-            } else {
-              data = event.data;
-            }
-
+            if (!event.data) return console.warn('Received empty message');
+            let data = typeof event.data === 'string'
+              ? JSON.parse(event.data.replace(/:\s*NaN\s*([,}])/g, ': null$1')
+                                  .replace(/:\s*Infinity\s*([,}])/g, ': null$1')
+                                  .replace(/:\s*-Infinity\s*([,}])/g, ': null$1'))
+              : event.data;
             if (data.type === 'connection') {
               console.log('Connection established with ID:', data.client_id);
               setClientId(data.client_id);
-              sessionId && socket.send(JSON.stringify({
-                type: 'pair', client_id: sessionId, sender_id: data.client_id, payload: 'Connection established'
-              }));
-              console.log('Pair message sent:', data.client_id);
+              sessionId && socket.send(JSON.stringify({ type: 'pair', client_id: sessionId, sender_id: data.client_id, payload: 'Connection established' }));
+              return console.log('Pair message sent:', data.client_id);
+            } else if (data.type === 'component_update' && data.payload) {
+              return socket.dispatchEvent(new CustomEvent('component_update', { detail: data.payload }));
+            } else if (data.from && data.content !== undefined) {
+              if (data.content === null) return console.warn('Received null content from server');
+              return socket.dispatchEvent(new CustomEvent('message', { detail: data.content }));
+            } else if (data.type === 'message' && data.payload) {
+              return socket.dispatchEvent(new CustomEvent('message', { detail: data.payload }));
+            } else if (data.type === 'paired') {
+              return socket.dispatchEvent(new CustomEvent('component_update', { detail: data.payload }));
+            } else if (['chunk_ack', 'chunks_complete_ack'].includes(data.type)) {
               return;
+            } else if (data.type === 'chunked_message_complete') {
+              return console.log(`Completed sending all chunks ${data.messageId}`);
             }
-
-            if (data.type === 'component_update' && data.payload) {
-              socket.dispatchEvent(new CustomEvent('component_update', {
-                detail: data.payload
-              }));
-              return;
-            }
-
-            if (data.from && data.content !== undefined) {
-              if (data.content === null) {
-                console.warn('Received null content from server');
-                return;
-              }
-              socket.dispatchEvent(new CustomEvent('message', {
-                detail: data.content
-              }));
-              return;
-            }
-
-            if (data.type === 'message' && data.payload) {
-              socket.dispatchEvent(new CustomEvent('message', {
-                detail: data.payload
-              }));
-              return;
-            }
-
-            if (data.type === 'paired') {
-              socket.dispatchEvent(new CustomEvent('component_update', {
-                detail: data.payload
-              }));
-              return;
-            }
-
             console.warn('Unhandled message format:', data);
-          } catch (error) {
-            console.error('Error handling message:', error, event.data);
-          }
+          } catch (error) { console.error('Error handling message:', error, event.data); }
         };
 
         socket.onclose = (event) => {
@@ -165,38 +131,33 @@ export const WebSocketProvider = ({ children }) => {
     };
   }, []);
 
-  // Helper function to send a chunk with retry logic
-  const sendChunkWithRetry = useCallback(async (chunk, maxRetries = 3) => {
+  // Add a helper function to wait until the WebSocket is open
+  const waitForSocketConnection = async (maxWait = 5000) => {
+    const start = Date.now();
+    while (ws?.readyState !== WebSocket.OPEN && Date.now() - start <= maxWait)
+      await new Promise(resolve => setTimeout(resolve, 100));
+    return ws?.readyState === WebSocket.OPEN;
+  };
+
+  // Replace sendChunkWithRetry with a loop-based retry mechanism
+  const sendChunkWithRetry = async (chunk, maxRetries = 3) => {
     let retries = 0;
-    
-    const attemptSend = async () => {
-      try {
-        if (ws?.readyState === WebSocket.OPEN) {
+    while (retries < maxRetries) {
+      if (ws?.readyState === WebSocket.OPEN) {
+        try {
           ws.send(JSON.stringify(chunk));
           return true;
-        } else if (retries < maxRetries) {
-          console.log(`WebSocket not open, attempting to reconnect (retry ${retries + 1}/${maxRetries})`);
-          retries++;
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before retry
-          connect();
-          return await attemptSend();
-        } else {
-          console.error("Failed to send chunk after retries");
-          return false;
+        } catch (error) {
+          console.error("Error sending chunk:", error);
         }
-      } catch (error) {
-        console.error("Error sending chunk:", error);
-        if (retries < maxRetries) {
-          retries++;
-          await new Promise(resolve => setTimeout(resolve, 1000)); // Wait before retry
-          return await attemptSend();
-        }
-        return false;
       }
-    };
-    
-    return await attemptSend();
-  }, [connect]);
+      retries++;
+      console.log(`WebSocket not open, waiting for connection (retry ${retries}/${maxRetries})`);
+      await waitForSocketConnection();
+    }
+    console.error("Failed to send chunk after retries");
+    return false;
+  };
 
   const socketService = {
     send: async (data) => {
