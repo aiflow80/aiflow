@@ -3,9 +3,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 const WebSocketContext = createContext(null);
 const WS_URL = 'ws://localhost:8888/ws';
 // Add max chunk size constant (1MB)
-const MAX_CHUNK_SIZE = 1 * 1024 * 1024; 
-// Add chunk transmission delay (in ms)
-const CHUNK_TRANSMISSION_DELAY = 100;
+const MAX_CHUNK_SIZE = 3 * 1024 * 1024; 
 
 // Helper function to determine if a message needs to be chunked
 const shouldChunkMessage = (data) => {
@@ -131,85 +129,57 @@ export const WebSocketProvider = ({ children }) => {
     };
   }, []);
 
-  // Add a helper function to wait until the WebSocket is open
-  const waitForSocketConnection = async (maxWait = 5000) => {
-    const start = Date.now();
-    while (ws?.readyState !== WebSocket.OPEN && Date.now() - start <= maxWait)
-      await new Promise(resolve => setTimeout(resolve, 100));
-    return ws?.readyState === WebSocket.OPEN;
-  };
-
-  // Replace sendChunkWithRetry with a loop-based retry mechanism
-  const sendChunkWithRetry = async (chunk, maxRetries = 3) => {
-    let retries = 0;
-    while (retries < maxRetries) {
-      if (ws?.readyState === WebSocket.OPEN) {
-        try {
-          ws.send(JSON.stringify(chunk));
-          return true;
-        } catch (error) {
-          console.error("Error sending chunk:", error);
-        }
+  const sendChunk = async (chunk) => {
+    if (ws?.readyState === WebSocket.OPEN) {
+      try {
+        ws.send(JSON.stringify(chunk));
+        return true;
+      } catch (error) {
+        console.error("Error sending chunk:", error);
       }
-      retries++;
-      console.log(`WebSocket not open, waiting for connection (retry ${retries}/${maxRetries})`);
-      await waitForSocketConnection();
     }
-    console.error("Failed to send chunk after retries");
+    console.error("WebSocket not connected, failed to send chunk");
     return false;
   };
 
   const socketService = {
     send: async (data) => {
-      if (ws?.readyState === WebSocket.OPEN) {
-        if (shouldChunkMessage(data)) {
-          const { messageId, totalChunks, chunks, originalMessage } = splitIntoChunks(data);
-          console.log(`Starting to send ${totalChunks} chunks for message ${messageId}`);
-          
-          // Send chunks with delay between them to prevent connection overload
-          for (let index = 0; index < chunks.length; index++) {
-            const chunkData = chunks[index];
-            const chunkMessage = JSON.parse(JSON.stringify(originalMessage));
-            chunkMessage.payload.fileEvent.data = chunkData;
-
-            const message = {
-              type: 'chunked_message',
-              messageId: messageId,
-              chunkIndex: index,
-              totalChunks: totalChunks,
-              payload: chunkMessage
-            };
-
-            // Send with delay between chunks
-            await new Promise(resolve => setTimeout(resolve, CHUNK_TRANSMISSION_DELAY));
-            const sent = await sendChunkWithRetry(message);
-            
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        console.warn("WebSocket not open, skipping sending");
+        return;
+      }
+      if (shouldChunkMessage(data)) {
+        const { messageId, totalChunks, chunks, originalMessage } = splitIntoChunks(data);
+        console.log(`Starting to send ${totalChunks} chunks for message ${messageId}`);
+        
+        // Send all chunks concurrently
+        const chunkPromises = chunks.map((chunkData, index) => {
+          const chunkMessage = JSON.parse(JSON.stringify(originalMessage));
+          chunkMessage.payload.fileEvent.data = chunkData;
+    
+          const message = {
+            type: 'chunked_message',
+            messageId: messageId,
+            chunkIndex: index,
+            totalChunks: totalChunks,
+            payload: chunkMessage
+          };
+    
+          return sendChunk(message).then(sent => {
             if (sent) {
               console.log(`Sent chunk ${index + 1}/${totalChunks} for message ${messageId}`);
             } else {
               console.error(`Failed to send chunk ${index + 1}/${totalChunks}`);
-              break;
             }
-          }
-          
-          // Send final notification that all chunks have been sent
-          await new Promise(resolve => setTimeout(resolve, CHUNK_TRANSMISSION_DELAY));
-          await sendChunkWithRetry({
-            type: 'chunks_complete',
-            messageId: messageId,
-            totalChunks: totalChunks
           });
-          console.log(`Completed sending all chunks for message ${messageId}`);
-        } else {
-          const message = typeof data === 'string' ? 
-            { type: 'message', payload: data } : data;
-          ws.send(JSON.stringify(message));
-        }
+        });
+    
+        await Promise.all(chunkPromises);
+        console.log(`Completed sending all chunks for message ${messageId}`);
       } else {
-        console.warn("WebSocket not open, attempting to connect...");
-        connect();
-        // Queue this message for resending after connection
-        setTimeout(() => socketService.send(data), 1000);
+        const message = typeof data === 'string' ? 
+          { type: 'message', payload: data } : data;
+        ws.send(JSON.stringify(message));
       }
     },
     addListener: (event, callback) => {

@@ -10,6 +10,60 @@ from aiflow.events import event_base
 
 logger = setup_logger('WebSocketClient')
 
+class ChunkTracker:
+    def __init__(self):
+        self.chunks = {}  # { message_id: { total_chunks, received_chunks, data, sender_id } }
+        self._cleanup_lock = threading.Lock()
+        self._last_activity = {}  # Track last activity for each chunked message
+
+    def add_chunk(self, message_id, chunk_index, total_chunks, chunk_data, sender_id):
+        with self._cleanup_lock:
+            if message_id not in self.chunks:
+                logger.info(f"Starting new chunked message with ID {message_id}, expecting {total_chunks} chunks")
+                self.chunks[message_id] = {'total_chunks': total_chunks,'received_chunks': {},'data': {},'sender_id': sender_id,'timestamp': time.time()}
+            self.chunks[message_id]['received_chunks'][chunk_index] = True
+            self.chunks[message_id]['data'][chunk_index] = chunk_data
+            self._last_activity[message_id] = time.time()
+            return self.is_complete(message_id)
+    
+    def is_complete(self, message_id):
+        if message_id not in self.chunks: 
+            return False
+        message_data = self.chunks[message_id]
+        return len(message_data['received_chunks']) == message_data['total_chunks']
+    
+    def get_complete_message(self, message_id):
+        if not self.is_complete(message_id): 
+            return None, None
+        message_data = self.chunks[message_id]
+        sorted_chunks = [message_data['data'][i] for i in range(message_data['total_chunks'])]
+        first_chunk = sorted_chunks[0]
+        if (first_chunk.get('payload').get('type') == 'file-change' and first_chunk.get('payload').get('fileEvent')):
+            combined_base64 = "".join(chunk['payload']['fileEvent']['data'] for chunk in sorted_chunks)
+            # Use a shallow copy instead of json reserialization to avoid evaluation errors
+            complete_message = first_chunk.copy()
+            complete_message['payload']['fileEvent']['data'] = combined_base64
+            with self._cleanup_lock:
+                sender_id = message_data['sender_id']
+                del self.chunks[message_id]
+                if message_id in self._last_activity:
+                    del self._last_activity[message_id]
+            return complete_message, sender_id
+        return None, None
+    
+    def cleanup_old_chunks(self, max_age_seconds=300):
+        with self._cleanup_lock:
+            current_time = time.time()
+            message_ids = list(self.chunks.keys())
+            for message_id in message_ids:
+                chunk_data = self.chunks[message_id]
+                last_activity = self._last_activity.get(message_id, chunk_data['timestamp'])
+                if current_time - last_activity > max_age_seconds:
+                    logger.warning(f"Removing stale chunked message {message_id}: received {len(chunk_data['received_chunks'])}/{chunk_data['total_chunks']} chunks")
+                    del self.chunks[message_id]
+                    if message_id in self._last_activity:
+                        del self._last_activity[message_id]
+
 class WebSocketClient:
     _instance = None
     _lock = threading.Lock()
@@ -28,6 +82,7 @@ class WebSocketClient:
         self._ready = asyncio.Event()
         self._running = True
         self._message_handlers = {}
+        self.chunk_tracker = ChunkTracker()  # New instance of ChunkTracker
         self._init_thread = threading.Thread(target=self._start_asyncio_loop, name="Client", daemon=True)
         self._init_thread.start()
         
@@ -69,6 +124,22 @@ class WebSocketClient:
         try:
             if isinstance(message, str):
                 message = json.loads(message)
+            if message.get('type') == 'chunked_message':
+                message_id = message.get('messageId')
+                # Ensure chunk_index, total_chunks, and payload are present
+                chunk_index = message.get('chunkIndex')
+                total_chunks = message.get('totalChunks')
+                payload = message.get('payload')
+                sender_id = message.get('client_id')  # Assume sender identity is passed in the message
+                if message_id and chunk_index is not None and total_chunks and payload:
+                    is_complete = self.chunk_tracker.add_chunk(message_id, chunk_index, total_chunks, payload, sender_id)
+                    if is_complete:
+                        logger.info(f"All chunks received for message ID {message_id}, reassembling")
+                        complete_message, _ = self.chunk_tracker.get_complete_message(message_id)
+                        if complete_message:
+                            await event_base.handle_message(complete_message)
+                return
+            # For non-chunked messages
             await event_base.handle_message(message)
         except Exception as e:
             logger.error(f"Error processing message: {e}")
@@ -133,7 +204,15 @@ class WebSocketClient:
         try:
             await self.connect()
             payload['client_id'] = target
-            await self.client.write_message(payload)
+            message_str = json.dumps(payload)
+            logger.debug(f"Sending message of size {len(message_str) / (1024 * 1024):.2f} MB")
+            THRESHOLD = 1_000_000
+            if len(message_str) > THRESHOLD:
+                logger.warning("Large message detected, which may trigger Tornado write issues. Consider using chunked messages.")
+                # ...optionally implement chunked sending logic here...
+            # Use message_str instead of payload
+            await self.client.write_message(message_str)
+            logger.info("Write message completed")
         except WebSocketClosedError:
             await self.connect(force_reconnect=True)
             await self.send(payload, target)
@@ -143,20 +222,14 @@ class WebSocketClient:
 
     def send_sync(self, payload: dict, target: str):
         try:
-            # Check if we're already in an event loop
+            loop = asyncio.get_running_loop()
+            return asyncio.run_coroutine_threadsafe(self.send(payload, target), loop).result()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
             try:
-                loop = asyncio.get_event_loop()
-                if loop.is_running():
-                    future = asyncio.run_coroutine_threadsafe(self.send(payload, target), loop)
-                    return future.result()
-                else:
-                    return loop.run_until_complete(self.send(payload, target))
-            except RuntimeError:
-                loop = asyncio.new_event_loop()
-                try:
-                    return loop.run_until_complete(self.send(payload, target))
-                finally:
-                    loop.close()
+                return loop.run_until_complete(self.send(payload, target))
+            finally:
+                loop.close()
         except Exception as e:
             logger.error(f"Failed to send message synchronously: {str(e)}")
             raise

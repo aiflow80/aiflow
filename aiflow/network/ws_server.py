@@ -11,71 +11,11 @@ class BaseHandler(RequestHandler):
 		self.set_header("Access-Control-Allow-Origin", "*"); self.set_header("Access-Control-Allow-Headers", "Content-Type"); self.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS"); self.set_header("Content-Type", "application/json")
 	def options(self): self.set_status(204); self.finish()
 
-class ChunkTracker:
-	def __init__(self):
-		self.chunks = {}  # { message_id: { total_chunks, received_chunks, data, sender_id } }
-		self._cleanup_lock = threading.Lock()
-		self._last_activity = {}  # Track last activity for each chunked message
-		
-	def add_chunk(self, message_id, chunk_index, total_chunks, chunk_data, sender_id):
-		with self._cleanup_lock:
-			if message_id not in self.chunks:
-				logger.info(f"Starting new chunked message with ID {message_id}, expecting {total_chunks} chunks")
-				self.chunks[message_id] = {'total_chunks': total_chunks,'received_chunks': {},'data': {},'sender_id': sender_id,'timestamp': time.time()}
-			self.chunks[message_id]['received_chunks'][chunk_index] = True
-			self.chunks[message_id]['data'][chunk_index] = chunk_data
-			self._last_activity[message_id] = time.time()
-			received = len(self.chunks[message_id]['received_chunks'])
-			logger.info(f"Received chunk {chunk_index+1}/{total_chunks} for message {message_id} ({received}/{total_chunks} total received)")
-			return self.is_complete(message_id)
-	
-	def is_complete(self, message_id):
-		if message_id not in self.chunks: return False
-		message_data = self.chunks[message_id]
-		return len(message_data['received_chunks']) == message_data['total_chunks']
-	
-	def get_complete_message(self, message_id):
-		if not self.is_complete(message_id): return None
-		message_data = self.chunks[message_id]
-		sorted_chunks = [message_data['data'][i] for i in range(message_data['total_chunks'])]
-		first_chunk = sorted_chunks[0]
-		if (first_chunk.get('payload').get('type') == 'file-change' and first_chunk.get('payload').get('fileEvent')):
-			combined_base64 = "".join(chunk['payload']['fileEvent']['data'] for chunk in sorted_chunks)
-			complete_message = json.loads(json.dumps(first_chunk))
-			complete_message['payload']['fileEvent']['data'] = combined_base64
-			with self._cleanup_lock:
-				sender_id = message_data['sender_id']
-				del self.chunks[message_id]
-				if message_id in self._last_activity: del self._last_activity[message_id]
-			return complete_message, sender_id
-		return None, None
-	
-	def cleanup_old_chunks(self, max_age_seconds=300):
-		with self._cleanup_lock:
-			current_time = time.time()
-			message_ids = list(self.chunks.keys())
-			for message_id in message_ids:
-				chunk_data = self.chunks[message_id]
-				last_activity = self._last_activity.get(message_id, chunk_data['timestamp'])
-				if current_time - last_activity > max_age_seconds:
-					logger.warning(f"Removing stale chunked message {message_id}: received {len(chunk_data['received_chunks'])}/{chunk_data['total_chunks']} chunks")
-					del self.chunks[message_id]
-					if message_id in self._last_activity: del self._last_activity[message_id]
-
 class ConnectionManager:
 	def __init__(self):
 		self.clients = {}
 		self._connection_count = 0
 		self._lock = threading.Lock()
-		self.chunk_tracker = ChunkTracker()
-		self._start_cleanup_task()
-
-	def _start_cleanup_task(self):
-		async def cleanup_periodically():
-			while True:
-				await asyncio.sleep(60)
-				self.chunk_tracker.cleanup_old_chunks()
-		asyncio.create_task(cleanup_periodically())
 
 	def add_client(self, client_id: str, client: WebSocketHandler) -> bool:
 		with self._lock:
@@ -157,27 +97,6 @@ class SecureWebSocketHandler(WebSocketHandler):
 	async def on_message(self, message):
 		try:
 			data = json.loads(message)
-			if data.get('type') == 'chunked_message':
-				message_id = data.get('messageId')
-				chunk_index = data.get('chunkIndex')
-				total_chunks = data.get('totalChunks')
-				payload = data.get('payload')
-				if message_id and chunk_index is not None and total_chunks and payload:
-					is_complete = self.manager.chunk_tracker.add_chunk(message_id, chunk_index, total_chunks, payload, self.client_id)
-					await self.write_message(json.dumps({"type": "chunk_ack","messageId": message_id,"chunkIndex": chunk_index,"status": "received"}))
-					if is_complete:
-						logger.info(f"All chunks received for message ID {message_id}, reassembling")
-						complete_message, sender_id = self.manager.chunk_tracker.get_complete_message(message_id)
-						if complete_message:
-							await self.write_message(json.dumps({"type": "chunked_message_complete","messageId": message_id,"status": "complete"}))
-							await self.manager.broadcast(sender_id, json.dumps(complete_message), data.get('client_id'))
-							logger.info(f"Successfully processed and broadcast complete message {message_id}")
-					return
-			if data.get('type') == 'chunks_complete':
-				message_id = data.get('messageId')
-				logger.info(f"Client reported all chunks sent for message {message_id}")
-				await self.write_message(json.dumps({"type": "chunks_complete_ack","messageId": message_id,"status": "received"}))
-				return
 			await self.manager.broadcast(self.client_id, message, data.get('client_id'))
 		except json.JSONDecodeError: logger.error("Invalid JSON message received")
 		except Exception as e:

@@ -95,7 +95,7 @@ class EventBase:
             try:
                 from aiflow.events.run import run_module
 
-                run_module(module_path, method="runpy")
+                run_module(module_path, method="importlib")
 
                 response = {
                     "type": "paired",
