@@ -205,14 +205,11 @@ class WebSocketClient:
             await self.connect()
             payload['client_id'] = target
             message_str = json.dumps(payload)
-            logger.debug(f"Sending message of size {len(message_str) / (1024 * 1024):.2f} MB")
             THRESHOLD = 1_000_000
             if len(message_str) > THRESHOLD:
                 logger.warning("Large message detected, which may trigger Tornado write issues. Consider using chunked messages.")
                 # ...optionally implement chunked sending logic here...
-            # Use message_str instead of payload
             await self.client.write_message(message_str)
-            logger.info("Write message completed")
         except WebSocketClosedError:
             await self.connect(force_reconnect=True)
             await self.send(payload, target)
