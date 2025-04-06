@@ -1,2 +1,0 @@
-"use strict";(self.webpackChunkcustom_component_example=self.webpackChunkcustom_component_example||[]).push([[5427],{5427:(e,o,t)=>{t.r(o),t.d(o,{default:()=>u});var n=t(9379),r=t(5043),m=t(8185),l=t(579);let a=!1;const u=r.forwardRef((function(e,o){return a||(console.warn(["MUI: The Skeleton component was moved from the lab to the core.","","You should use `import { Skeleton } from '@mui/material'`","or `import Skeleton from '@mui/material/Skeleton'`"].join("\n")),a=!0),(0,l.jsx)(m.A,(0,n.A)({ref:o},e))}))}}]);
-//# sourceMappingURL=5427.22e473b3.chunk.js.map

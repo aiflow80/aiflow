@@ -2,8 +2,8 @@ import sys
 import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from aiflow import mui
-from aiflow.events import events_store  # Direct import of the events dictionary
+from libz import mui
+from libz.events import events_store  # Direct import of the events dictionary
 
 
 # Card container for the form

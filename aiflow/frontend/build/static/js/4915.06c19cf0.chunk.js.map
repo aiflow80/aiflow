@@ -1,1 +1,0 @@
-{"version":3,"file":"static/js/4915.06c19cf0.chunk.js","mappings":"yRACA,Q,QAAyB,C","sources":["../node_modules/@mui/material/utils/capitalize.js"],"sourcesContent":["import capitalize from '@mui/utils/capitalize';\nexport default capitalize;"],"names":[],"sourceRoot":""}

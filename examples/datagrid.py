@@ -3,8 +3,8 @@ import os
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 import pandas as pd
-from aiflow import mui, logger, events, state
-from aiflow.mui.custom_components.data_grid import datagrid
+from libz import mui, logger, events, state
+from libz.mui.custom_components.data_grid import datagrid
 
 import io
 

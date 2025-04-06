@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkcustom_component_example=self.webpackChunkcustom_component_example||[]).push([[5925],{5925:(e,s,t)=>{t.r(s),t.d(s,{buttonBaseClasses:()=>a.A,default:()=>l.A,getButtonBaseUtilityClass:()=>a.W,getTouchRippleUtilityClass:()=>p.O,touchRippleClasses:()=>p.A});var l=t(5294),a=t(6154),p=t(4714)}}]);

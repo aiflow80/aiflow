@@ -1,1 +1,0 @@
-"use strict";(self.webpackChunkcustom_component_example=self.webpackChunkcustom_component_example||[]).push([[5733],{5733:(e,s,a)=>{a.r(s),a.d(s,{default:()=>l.A,getSpeedDialUtilityClass:()=>t.i,speedDialClasses:()=>t.A});var l=a(4301),t=a(534)}}]);

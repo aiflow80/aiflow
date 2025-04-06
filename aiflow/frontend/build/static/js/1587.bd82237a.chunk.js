@@ -1,2 +1,0 @@
-"use strict";(self.webpackChunkcustom_component_example=self.webpackChunkcustom_component_example||[]).push([[1587],{1587:(e,o,t)=>{t.r(o),t.d(o,{default:()=>p});var a=t(9379),r=t(5043),m=t(4301),n=t(579);let l=!1;const p=r.forwardRef((function(e,o){return l||(console.warn(["MUI: The SpeedDial component was moved from the lab to the core.","","You should use `import { SpeedDial } from '@mui/material'`","or `import SpeedDial from '@mui/material/SpeedDial'`"].join("\n")),l=!0),(0,n.jsx)(m.A,(0,a.A)({ref:o},e))}))}}]);
-//# sourceMappingURL=1587.bd82237a.chunk.js.map

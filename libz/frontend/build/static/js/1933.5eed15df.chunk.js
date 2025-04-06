@@ -1,0 +1,1 @@
+"use strict";(self.webpackChunkcustom_component_example=self.webpackChunkcustom_component_example||[]).push([[1933],{1933:(e,a,s)=>{s.r(a),s.d(a,{avatarClasses:()=>l.A,default:()=>t.A,getAvatarUtilityClass:()=>l.k});var t=s(587),l=s(2913)}}]);
