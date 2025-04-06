@@ -4,7 +4,7 @@ import time
 
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from libz import mui
+from aiflow import mui
 
 def card_component():
     # The reset is now automatic when mui is imported

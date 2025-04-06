@@ -1,5 +1,5 @@
 import pandas as pd
-from libz import mui, events_store, state
+from aiflow import mui, events_store, state
 
 def datagrid(df, grid_id="my-grid", **grid_props):
     _state = state

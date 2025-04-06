@@ -3,9 +3,9 @@ import time
 import logging
 from typing import List, Dict, Any, Set, Optional, Union, Callable, TypeVar
 
-from libz.mui.mui_component import MUIComponent
-from libz.mui.mui_icons import MUIIcons
-from libz.events import event_base
+from aiflow.mui.mui_component import MUIComponent
+from aiflow.mui.mui_icons import MUIIcons
+from aiflow.events import event_base
 
 # Set up logging
 logger = logging.getLogger(__name__)

@@ -1,11 +1,11 @@
-from libz.logger import root_logger as logger
+from aiflow.logger import root_logger as logger
 
-from libz.launcher import Launcher
-from libz.mui import mui
+from aiflow.launcher import Launcher
+from aiflow.mui import mui
 
 launcher = Launcher()  
 
-from libz.events import event_base  # Import run from events package, not from event_base
+from aiflow.events import event_base  # Import run from events package, not from event_base
 
 # Expose the events dictionary references
 events = event_base.events

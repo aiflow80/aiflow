@@ -9,10 +9,10 @@ import psutil
 import concurrent.futures
 import atexit
 from typing import Optional, Dict, List
-from libz.events import event_base
-from libz.network.ws_client import WebSocketClient
-from libz.logger import setup_logger
-from libz.config import config
+from aiflow.events import event_base
+from aiflow.network.ws_client import WebSocketClient
+from aiflow.logger import setup_logger
+from aiflow.config import config
 
 logger = setup_logger("Launcher")
 

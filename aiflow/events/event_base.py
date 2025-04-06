@@ -1,6 +1,6 @@
 from collections import deque
 import time
-from libz import logger
+from aiflow import logger
 import threading
 from datetime import datetime
 
@@ -93,7 +93,7 @@ class EventBase:
 
         def _run():
             try:
-                from libz.events.run import run_module
+                from aiflow.events.run import run_module
 
                 run_module(module_path, method="importlib")
 
@@ -166,7 +166,7 @@ class EventBase:
         return self._ready.is_set()
 
     def reset_mui_state(self):
-        from libz.mui import mui
+        from aiflow.mui import mui
         mui.reset()
 
 event_base = EventBase()
