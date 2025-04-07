@@ -3,6 +3,7 @@ import { ErrorBoundary } from "react-error-boundary";
 import { jsx } from "@emotion/react";
 import Box from "@mui/material/Box";
 import ElementsTheme from "./elementsTheme";
+import ElementsLoading from "./elementsLoading";
 import loadMuiElements from "./modules/mui/elements";
 import loadMuiIcons from "./modules/mui/icons";
 import loadMuiLab from "./modules/mui/lab";
@@ -62,11 +63,14 @@ const send = async (data) => {
   } catch (error) { console.error('Failed to serialize data:', error); }
 };
 
-const handleFileEvent = async (event, key, socketService, clientId) => {
+const handleFileEvent = async (event, key, socketService, clientId, setLoadingState) => {
   try {
     if (!event?.target?.files?.length) return;
     const file = event.target.files[0];
     const reader = new FileReader();
+
+    // Set loading to true at the start of file reading
+    setLoadingState(true);
 
     reader.onload = () => {
       send({
@@ -81,12 +85,17 @@ const handleFileEvent = async (event, key, socketService, clientId) => {
         },
         timestamp: Date.now()
       }, socketService, clientId);
+      
+      // Set loading back to false when file is processed
+      setLoadingState(false);
     };
 
     reader.readAsDataURL(file);
   } catch (error) {
     console.error('File handling error:', error);
     send({}, socketService, clientId);
+    // Make sure to reset loading state on error
+    setLoadingState(false);
   }
 };
 
@@ -136,6 +145,7 @@ const ElementsApp = ({ args, theme }) => {
   const [componentsMap, setComponentsMap] = useState({});
   const [streamingStart, setStreamingStart] = useState(null);
   const [streamingEnd, setStreamingEnd] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   // eslint-disable-next-line no-unused-vars
   const [previousComponentsMap, setPreviousComponentsMap] = useState({});
   const { socketService, clientId } = useWebSocket();
@@ -150,7 +160,7 @@ const ElementsApp = ({ args, theme }) => {
   function sendEvent(data) { send(data, socketService, clientId); }
   
   function handleFileEventWithContext(event, key) { 
-    handleFileEvent(event, key, socketService, clientId); 
+    handleFileEvent(event, key, socketService, clientId, setIsLoading); 
   }
   
   function handleFormEvent(eventData) {
@@ -311,6 +321,11 @@ const ElementsApp = ({ args, theme }) => {
     const tree = buildUiTree(componentsMap);
     setUiTree(tree);
     console.log('UiTree updated with new component details:', tree);
+    
+    // Set loading to false once we have components
+    if (tree.length > 0) {
+      setIsLoading(false);
+    }
   }, [componentsMap]);
 
   // Render UI elements
@@ -329,7 +344,7 @@ const ElementsApp = ({ args, theme }) => {
             An error occurred while rendering the component.
           </div>}
           onError={(error) => sendEvent({ error: error.message })}>
-          {elements}
+          {isLoading ? <ElementsLoading /> : elements}
         </ErrorBoundary>
       </Box>
     </ElementsTheme>
