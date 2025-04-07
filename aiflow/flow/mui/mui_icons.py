@@ -1,4 +1,4 @@
-from .mui_component import MUIComponent
+from aiflow.flow.mui.mui_component import MUIComponent
 
 class MUIIcons:
     def __init__(self, builder):

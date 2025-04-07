@@ -4,7 +4,7 @@ import sys
 import subprocess
 import runpy
 from aiflow import logger
-from aiflow.events import event_base
+from aiflow.flow.events import event_base
 
 def run_module_subprocess(file_path):
     """Run a Python module as a subprocess."""

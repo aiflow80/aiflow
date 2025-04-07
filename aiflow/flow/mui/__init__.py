@@ -1,4 +1,4 @@
-from aiflow.mui.mui_builder import MUIBuilder
+from aiflow.flow.mui.mui_builder import MUIBuilder
 
 mui = MUIBuilder()  # Create instance here
 

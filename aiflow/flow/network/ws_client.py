@@ -4,9 +4,9 @@ import threading
 import time
 from typing import Optional
 from tornado.websocket import websocket_connect, WebSocketClosedError
-from aiflow.logger import setup_logger
-from aiflow.config import config
-from aiflow.events import event_base
+from aiflow.flow.logger import setup_logger
+from aiflow.flow.config import config
+from aiflow.flow.events import event_base
 
 logger = setup_logger('WebSocketClient')
 

@@ -25,6 +25,7 @@ def datagridcard():
                 state['df'] = df
                 
         except Exception as e:
+            state['df'] = None
             logger.error(f"Error reading file: {str(e)}")
 
     with mui.Card(sx={"p": 2}):

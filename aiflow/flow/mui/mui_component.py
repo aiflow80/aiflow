@@ -1,6 +1,5 @@
 from typing import Any, Dict, List, Optional, Union
-import time
-from aiflow.events import event_base
+from aiflow.flow.events import event_base
 
 class MUIComponent:
     _sent_components = {}
