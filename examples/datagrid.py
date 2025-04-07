@@ -4,7 +4,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 import pandas as pd
 from aiflow import mui, logger, events, state
-from aiflow.mui.custom_components.data_grid import datagrid
+from aiflow.flow.mui.custom_components.data_grid import datagrid
 
 import io
 

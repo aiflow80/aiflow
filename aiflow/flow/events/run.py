@@ -3,8 +3,10 @@ import os
 import sys
 import subprocess
 import runpy
-from aiflow import logger
+from aiflow.flow.logger import setup_logger
 from aiflow.flow.events import event_base
+
+logger = setup_logger('RunModule')
 
 def run_module_subprocess(file_path):
     """Run a Python module as a subprocess."""
